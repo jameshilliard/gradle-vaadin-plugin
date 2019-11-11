@@ -39,6 +39,7 @@ import org.gradle.api.tasks.SourceSet
 import org.gradle.util.VersionNumber
 
 import java.awt.*
+import java.lang.reflect.Method
 import java.nio.file.FileSystems
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
@@ -117,10 +118,10 @@ class Util {
         if ( pluginExtension.useClassPathJar ) {
             // Add dependencies using the classpath jar
             BuildClassPathJar pathJarTask = project.tasks.getByName(BuildClassPathJar.NAME)
-            if(!pathJarTask.archivePath.exists()) {
+            if(!pathJarTask.archiveFile.present) {
                 throw new IllegalStateException("Classpath jar has not been created in project $pathJarTask.project")
             }
-            classpath = project.files(pathJarTask.archivePath)
+            classpath = project.files(pathJarTask.archiveFile)
         } else {
             classpath = getCompileClassPath(project)
         }
@@ -391,7 +392,8 @@ class Util {
         if ( project.vaadin.logToConsole ) {
             logProcessToConsole(project, process, monitor)
         } else {
-            logProcessToFile(project, process, filename, monitor)
+            logProcessToConsole(project, process, monitor)
+            //logProcessToFile(project, process, filename, monitor)
         }
     }
 
@@ -734,7 +736,7 @@ class Util {
                             addons.addAll(findAddonsInProject(dependentProject, byAttribute, includeFile,
                                     scannedProjects))
                         }
-                    } else if (isResolvable(project, conf)){
+                    } else if (isResolvable(project, conf) && !isDeprecated(conf)){
                         conf.files(dependency).each { File file ->
                             if (file.file && file.name.endsWith(JAR_EXTENSION)) {
                                 file.withInputStream { InputStream stream ->
@@ -827,7 +829,7 @@ class Util {
         classpath += project.configurations[GradleVaadinPlugin.CONFIGURATION_CLIENT_COMPILE]
 
         // Include runtime dependencies
-        classpath += project.configurations.runtime
+        classpath += project.configurations.runtimeClasspath
 
         // Include push dependencies if enabled
         if ( isPushEnabled(project) ) {
@@ -1036,6 +1038,29 @@ class Util {
         VersionNumber gradleVersion = VersionNumber.parse(project.gradle.gradleVersion)
         VersionNumber gradleVersionWithUnresolvableDeps = new VersionNumber(3, 3, 0, null)
         gradleVersion >= gradleVersionWithUnresolvableDeps
+    }
+
+    /**
+     * Is the configuration deprecated
+     *
+     * @param configuration
+     *      the configuration to check
+     * @return
+     *      true if configuration is deprecated
+     */
+    @Memoized
+    static boolean isDeprecated(Configuration configuration) {
+        List<String> resolutionAlternatives = null
+        Method getResolutionAlternatives = null
+        try {
+            getResolutionAlternatives = configuration.class.getMethod("getResolutionAlternatives", (Class<?>[]) null)
+        } catch (Exception e) {
+            //
+        }
+        if (getResolutionAlternatives != null) {
+            resolutionAlternatives = getResolutionAlternatives.invoke(configuration, (Object[]) null)
+        }
+        resolutionAlternatives != null
     }
 
     /**

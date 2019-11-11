@@ -28,7 +28,7 @@ class KotlinTest extends KotlinIntegrationTest {
 
     @Parameterized.Parameters(name = "Kotlin {0}")
     static Collection<String> getKotlinVersions() {
-        [ '1.3.11']
+        [ '1.4.31']
     }
 
     @Test void 'Create project'() {
@@ -55,6 +55,8 @@ class KotlinTest extends KotlinIntegrationTest {
            val vaadinRun : com.devsoap.plugin.tasks.RunTask by tasks
            vaadinRun.apply {
                 server = "jetty"
+                debugPort = ${getPort()}
+                serverPort = ${getPort()}
            }
         """.stripIndent()
 

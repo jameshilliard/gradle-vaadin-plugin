@@ -21,6 +21,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
+import java.nio.file.Path
 import java.nio.file.Paths
 
 /**
@@ -35,6 +36,8 @@ class IntegrationTest {
 
     @Rule
     public TemporaryFolder projectDir = new TemporaryFolder()
+
+    protected GradleRunner runnerCache = null
 
     protected File buildFile
 
@@ -56,8 +59,8 @@ class IntegrationTest {
     }
 
     protected String getPluginDir() {
-        File libsDir = Paths.get('.', 'build', 'libs').toFile()
-        String escapedDir = libsDir.canonicalPath.replace("\\","\\\\")
+        Path libsDir = Paths.get('.', 'build', 'libs')
+        String escapedDir = libsDir.toAbsolutePath().toString().replace("\\","\\\\")
         escapedDir
     }
 
@@ -142,6 +145,24 @@ class IntegrationTest {
     }
 
     protected GradleRunner setupRunner(File projectDir = this.projectDir.root) {
-        GradleRunner.create().withProjectDir(projectDir).withPluginClasspath()
+        GradleRunner runner
+        if (runnerCache == null) {
+            runner = GradleRunner.create().withPluginClasspath().withDebug(false)
+        } else {
+            runner = runnerCache
+        }
+        if (projectDir != runner.getProjectDir()) {
+            runner.withProjectDir(projectDir)
+        }
+        runnerCache = runner
+        runner
+    }
+
+    protected int getPort() {
+        final ServerSocket socket = new ServerSocket(0)
+        socket.setReuseAddress(false)
+        int port = socket.getLocalPort()
+        socket.close()
+        port
     }
 }

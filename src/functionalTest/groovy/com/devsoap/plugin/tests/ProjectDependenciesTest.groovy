@@ -156,7 +156,7 @@ class ProjectDependenciesTest extends IntegrationTest {
 
         buildFile << """
             vaadin {
-                version '7.3.0'               
+                version '8.12.2'               
             }
             
             vaadinCompile {
@@ -184,8 +184,8 @@ class ProjectDependenciesTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('verifyVaadinVersion')
-        assertTrue result, result.contains( 'Vaadin Server 7.3.0')
-        assertTrue result, result.contains( 'Vaadin Client 7.3.0')
+        assertTrue result, result.contains( 'Vaadin Server 8.12.2')
+        assertTrue result, result.contains( 'Vaadin Client 8.12.2')
     }
 
     @Test void 'Project has Testbench dependencies'() {
@@ -215,16 +215,16 @@ class ProjectDependenciesTest extends IntegrationTest {
 
         buildFile << """
              dependencies {
-                compile 'com.vaadin:vaadin-sass-compiler:+'
-                compile 'com.vaadin:vaadin-client-compiler-deps:+'
-                compile 'com.vaadin:vaadin-cdi:+'
-                compile 'com.vaadin:vaadin-spring:+'
-                compile 'com.vaadin:vaadin-spring-boot:+'
+                implementation 'com.vaadin:vaadin-sass-compiler:+'
+                implementation 'com.vaadin:vaadin-client-compiler-deps:+'
+                implementation 'com.vaadin:vaadin-cdi:+'
+                implementation 'com.vaadin:vaadin-spring:+'
+                implementation 'com.vaadin:vaadin-spring-boot:+'
             }
 
             task evaluateVersionBlacklist {
                 doLast {
-                    project.configurations.compile.dependencies.each {
+                    project.configurations.compileClasspath.dependencies.each {
                         if ( it.version.equals(project.vaadin.version) ) {
                             println 'Version blacklist failed for ' + it
                         }
@@ -262,7 +262,7 @@ class ProjectDependenciesTest extends IntegrationTest {
         buildFile << """
             String lib = 'libs/qrcode-2.1.jar'
             dependencies {
-                 compile files(lib)
+                 implementation files(lib)
             }
             task downloadFile(type: de.undercouch.gradle.tasks.download.Download) {
                 src 'http://vaadin.com/nexus/content/repositories/vaadin-addons/' +

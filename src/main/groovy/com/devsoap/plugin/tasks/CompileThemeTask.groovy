@@ -27,6 +27,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
 import org.gradle.tooling.BuildActionFailureException
 
@@ -65,10 +66,14 @@ class CompileThemeTask extends DefaultTask {
 
     private static final String STYLES_SCSS = 'styles.scss'
 
+    @Input
+    @Optional
     private final Property<String> themesDirectory = project.objects.property(String)
     private final Property<String> compiler = project.objects.property(String)
     private final Property<Boolean> compress = project.objects.property(Boolean)
+    @Input
     private final Property<Boolean> useClasspathJar = project.objects.property(Boolean)
+    @Input
     private final ListProperty<String> jvmArgs = project.objects.listProperty(String)
 
     /**
@@ -93,7 +98,7 @@ class CompileThemeTask extends DefaultTask {
             // Add classpath jar
             if ( getUseClasspathJar() ) {
                 BuildClassPathJar pathJarTask = project.tasks.getByName(BuildClassPathJar.NAME)
-                inputs.file(pathJarTask.archivePath)
+                inputs.file(pathJarTask.archiveFile)
             }
 
             // Compress if needed
@@ -333,7 +338,7 @@ class CompileThemeTask extends DefaultTask {
             def gemProcess = [Util.getJavaBinary(project)]
             gemProcess += [CLASSPATH_SWITCH,  Util.getCompileClassPathOrJar(project).asPath]
             gemProcess += RUBY_MAIN_CLASS
-            gemProcess += "-S gem install -i $gemsDir --no-rdoc --no-ri compass".tokenize()
+            gemProcess += "-S gem install -i $gemsDir --no-document compass".tokenize()
 
             project.logger.debug(gemProcess.toString())
             gemProcess = gemProcess.execute([
@@ -380,7 +385,7 @@ class CompileThemeTask extends DefaultTask {
                             into unpackedThemesDir
                         }
                     }
-                } else if (Util.isResolvable(project, conf)) {
+                } else if (Util.isResolvable(project, conf) && !Util.isDeprecated(conf)) {
                     conf.files(dependency).each { File file ->
                         file.withInputStream { InputStream stream ->
                             def jarStream = new JarInputStream(stream)

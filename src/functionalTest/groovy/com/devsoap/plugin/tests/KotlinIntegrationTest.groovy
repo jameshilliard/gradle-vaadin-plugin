@@ -100,7 +100,7 @@ class KotlinIntegrationTest extends IntegrationTest {
            }
 
            dependencies {
-                compile("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+                implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
            }
         """.stripIndent()
     }

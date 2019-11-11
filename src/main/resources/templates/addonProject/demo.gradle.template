@@ -8,5 +8,5 @@ apply plugin: 'com.devsoap.plugin.vaadin'
 
 // Demo depends on the addon
 dependencies {
-    compile project(':addon')
+    implementation project(':addon')
 }

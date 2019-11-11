@@ -212,7 +212,7 @@ class GradleVaadinPlugin implements Plugin<Project> {
 
         Gradle gradle = project.gradle
         VersionNumber version = VersionNumber.parse(gradle.gradleVersion)
-        VersionNumber requiredVersion = new VersionNumber(5, 6, 0, null)
+        VersionNumber requiredVersion = new VersionNumber(6, 0, 0, null)
         if ( version.baseVersion < requiredVersion ) {
             throw new UnsupportedVersionException("Your gradle version ($version) is too old. " +
                     "Plugin requires Gradle $requiredVersion+")
@@ -532,8 +532,8 @@ class GradleVaadinPlugin implements Plugin<Project> {
 
                     // Needed so bootRepackage can include all dependencies in Jar
                     conf.extendsFrom(
-                            project.configurations['compile'],
-                            project.configurations['runtime'],
+                            project.configurations['compileClasspath'],
+                            project.configurations['runtimeClasspath'],
                             project.configurations[CONFIGURATION_PUSH],
                             project.configurations[CONFIGURATION_CLIENT_COMPILE]
                     )

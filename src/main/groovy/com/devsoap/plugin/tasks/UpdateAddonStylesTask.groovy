@@ -44,7 +44,7 @@ class UpdateAddonStylesTask extends DefaultTask {
         project.afterEvaluate {
 
             // Themes dirs
-            def themesDir = Util.getThemesDirectory(project)
+            File themesDir = Util.getThemesDirectory(project)
             if ( themesDir && themesDir.exists() ) {
                 themesDir.eachDir {
                     inputs.dir it
@@ -55,7 +55,7 @@ class UpdateAddonStylesTask extends DefaultTask {
             // Add classpath jar
             if ( project.vaadin.useClassPathJar ) {
                 BuildClassPathJar pathJarTask = project.getTasksByName(BuildClassPathJar.NAME, true).first()
-                inputs.file(new File(pathJarTask.destinationDirectory.get().asFile, pathJarTask.archiveFileName.get()))
+                inputs.file(pathJarTask.getArchiveFile().get())
             }
         }
     }

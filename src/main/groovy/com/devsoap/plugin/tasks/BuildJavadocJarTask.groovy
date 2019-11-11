@@ -34,7 +34,7 @@ class BuildJavadocJarTask extends Jar {
 
     BuildJavadocJarTask() {
         description = 'Creates a javadoc jar for the project'
-        classifier = JAVADOC_TASK_NAME
+        archiveClassifier.set(JAVADOC_TASK_NAME)
         dependsOn JAVADOC_TASK_NAME
         project.tasks.getByName(JAVADOC_TASK_NAME) { Javadoc task ->
             from task.destinationDir

@@ -60,7 +60,7 @@ class VaadinPluginAction extends PluginAction {
                 'Implementation-Title':addonExtension.title,
                 'Implementation-Version':project.version != null ? project.version : '',
                 'Implementation-Vendor':addonExtension.author,
-                'Vaadin-Addon': "libs/${project.jar.archiveName}"
+                'Vaadin-Addon': "libs/${project.jar.archiveFileName}"
         ] as HashMap<String, String>
 
         // Create metadata file

@@ -40,7 +40,7 @@ class PluginExtensionConfigurationTest extends MultiProjectIntegrationTest {
             project(':project2') {
 
                 dependencies {
-                    compile project(':project1')
+                    implementation project(':project1')
                 }
 
                 vaadinCompile {

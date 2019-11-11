@@ -7,6 +7,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.mockserver.integration.ClientAndProxy
+import org.mockserver.model.HttpRequest;
 import java.nio.file.Paths
 import static org.junit.Assert.assertTrue
 import static org.junit.Assert.assertEquals
@@ -34,7 +35,7 @@ class ProxyTest extends IntegrationTest {
     void 'Test widgetset CDN behind proxy'() {
         buildFile << """
             dependencies {
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation 'org.vaadin.addons:qrcode:+'
             }
 
             vaadinCompile {
@@ -77,12 +78,13 @@ class ProxyTest extends IntegrationTest {
     }
 
     private Map getRequest(String path) {
-        (Map) new JsonSlurper().parseText(parseRequests()
-                .find { req -> req.path == path }.body)
+        ArrayList<Map> jsonArray = (ArrayList<Map>) new JsonSlurper().parseText(parseRequests(path))
+        jsonArray.get(0)
     }
 
-    private List<Map> parseRequests() {
-        String json = proxy.retrieveAsJSON(null)
-        (List<Map>) new JsonSlurper().parseText(json)
+    private String parseRequests(String path) {
+        String json = proxy.retrieveAsJSON(HttpRequest.request(path))
+        ArrayList<ArrayList> jsonArray = (ArrayList<ArrayList>) new JsonSlurper().parseText(json)
+        jsonArray['body']['string']
     }
 }

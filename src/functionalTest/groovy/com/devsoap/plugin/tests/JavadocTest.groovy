@@ -26,7 +26,7 @@ class JavadocTest extends IntegrationTest {
         assertFalse result, result.contains('warnings')
 
         File libsDir = Paths.get(projectDir.root.canonicalPath, 'build', 'libs').toFile()
-        File javadocJar = libsDir.listFiles().first()
+        File javadocJar = libsDir.listFiles().find { it.name.endsWith('-javadoc.jar')}
         assertTrue 'Javadoc jar was missing', javadocJar.exists()
         assertTrue "$javadocJar was not a javadoc jar", javadocJar.name.endsWith('-javadoc.jar')
     }
@@ -41,7 +41,7 @@ class JavadocTest extends IntegrationTest {
         assertFalse result, result.contains('warnings')
 
         File libsDir = Paths.get(projectDir.root.canonicalPath, 'build', 'libs').toFile()
-        File javadocJar = libsDir.listFiles().first()
+        File javadocJar = libsDir.listFiles().find { it.name.endsWith('-javadoc.jar')}
         assertTrue 'Javadoc jar was missing', javadocJar.exists()
         assertTrue "$javadocJar was not a javadoc jar", javadocJar.name.endsWith('-javadoc.jar')
     }

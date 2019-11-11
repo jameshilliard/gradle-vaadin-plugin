@@ -24,14 +24,14 @@ class GroovyProjectTest extends IntegrationTest {
            }
 
            dependencies {
-                compile 'org.codehaus.groovy:groovy-all:2.4.+'
+                implementation localGroovy()
            }
 
         """.stripIndent()
     }
 
     @Test void 'Run Groovy Project'() {
-        def output = runWithArguments(CreateProjectTask.NAME, RunTask.NAME, '--stopAfterStart')
+        def output = runWithArguments(CreateProjectTask.NAME, RunTask.NAME, '--stopAfterStart', '-Pdebug=false')
         assertServerRunning output
     }
 

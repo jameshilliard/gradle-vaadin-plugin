@@ -69,13 +69,13 @@ class JettyApplicationServer extends ApplicationServer {
                 "org.eclipse.jetty:jetty-deploy:${Util.pluginProperties.getProperty(JETTY_VERSION_PROPERTY)}")
         dependencies.add(jettyDeploy)
 
-        Dependency asm = projectDependencies.create('org.ow2.asm:asm:5.0.3')
+        Dependency asm = projectDependencies.create('org.ow2.asm:asm:9.0')
         dependencies.add(asm)
 
-        Dependency asmCommons = projectDependencies.create('org.ow2.asm:asm-commons:5.0.3')
+        Dependency asmCommons = projectDependencies.create('org.ow2.asm:asm-commons:9.0')
         dependencies.add(asmCommons)
 
-        Dependency jspApi = projectDependencies.create('javax.servlet.jsp:jsp-api:2.2')
+        Dependency jspApi = projectDependencies.create('javax.servlet.jsp:javax.servlet.jsp-api:2.3.3')
         dependencies.add(jspApi)
     }
 }

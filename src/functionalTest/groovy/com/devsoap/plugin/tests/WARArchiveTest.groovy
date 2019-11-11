@@ -19,7 +19,7 @@ class WARArchiveTest extends IntegrationTest {
     @Override
     void setup() {
         super.setup()
-        buildFile << "vaadin.version = '7.6.4'\n"
+        buildFile << "vaadin.version = '8.12.2'\n"
     }
 
     @Test void 'WAR task action is run'() {
@@ -35,18 +35,15 @@ class WARArchiveTest extends IntegrationTest {
 
         // Files in WEB-INF/lib
         def final FILES_IN_WEBINF_LIB = [
-                'vaadin-server-7.6.4.jar',
-                'vaadin-themes-7.6.4.jar',
+                'vaadin-server-8.12.2.jar',
+                'vaadin-themes-8.12.2.jar',
                 'vaadin-sass-compiler-0.9.13.jar',
-                'vaadin-shared-7.6.4.jar',
-                'jsoup-1.8.3.jar',
+                'vaadin-shared-8.12.2.jar',
+                'jsoup-1.11.2.jar',
                 'sac-1.3.jar',
                 'flute-1.3.0.gg2.jar',
-                'yuicompressor-2.4.8.jar',
-                'streamhtmlparser-jsilver-0.0.10.vaadin1.jar',
-                'guava-16.0.1.vaadin1.jar',
-                'js-1.7R2.jar',
-                'vaadin-client-compiled-7.6.4.jar'
+                'vaadin-client-compiled-8.12.2.jar',
+                'gentyref-1.2.0.vaadin1.jar'
         ]
 
         assertFilesInFolder(warFile, FILES_IN_WEBINF_LIB, 'WEB-INF/lib')
@@ -60,17 +57,14 @@ class WARArchiveTest extends IntegrationTest {
 
         // Files in WEB-INF/lib
         def final FILES_IN_WEBINF_LIB = [
-                'vaadin-server-7.6.4.jar',
-                'vaadin-themes-7.6.4.jar',
+                'vaadin-server-8.12.2.jar',
+                'vaadin-themes-8.12.2.jar',
                 'vaadin-sass-compiler-0.9.13.jar',
-                'vaadin-shared-7.6.4.jar',
-                'jsoup-1.8.3.jar',
+                'vaadin-shared-8.12.2.jar',
+                'jsoup-1.11.2.jar',
                 'sac-1.3.jar',
                 'flute-1.3.0.gg2.jar',
-                'yuicompressor-2.4.8.jar',
-                'streamhtmlparser-jsilver-0.0.10.vaadin1.jar',
-                'guava-16.0.1.vaadin1.jar',
-                'js-1.7R2.jar'
+                'gentyref-1.2.0.vaadin1.jar'
         ]
 
         assertFilesInFolder(warFile, FILES_IN_WEBINF_LIB, 'WEB-INF/lib')
@@ -111,7 +105,7 @@ class WARArchiveTest extends IntegrationTest {
     @Test void 'Provided and runtime dependencies not included'() {
         buildFile << """
         dependencies {
-            runtime 'commons-lang:commons-lang:2.6'
+            runtimeOnly 'commons-lang:commons-lang:2.6'
             compileOnly 'commons-lang:commons-lang:2.6'
             providedCompile 'commons-lang:commons-lang:2.6'
         }

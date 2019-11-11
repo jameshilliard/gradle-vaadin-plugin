@@ -35,7 +35,7 @@ class UpdateWidgetsetTest extends IntegrationTest {
         buildFile << "vaadinCompile.widgetset = 'com.example.MyWidgetset'\n"
         buildFile << """
             dependencies {
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation 'org.vaadin.addons:qrcode:+'
             }
         """
 
@@ -52,7 +52,7 @@ class UpdateWidgetsetTest extends IntegrationTest {
         File buildFile1 = makeBuildFile(project1Dir)
         buildFile1 << """
             dependencies {
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation 'org.vaadin.addons:qrcode:+'
             }
         """
 
@@ -63,7 +63,7 @@ class UpdateWidgetsetTest extends IntegrationTest {
         buildFile2 << "vaadinCompile.widgetset = 'com.example.MyWidgetset'\n"
         buildFile2 << """
             dependencies {
-                compile project(':project1')
+                implementation project(':project1')
             }
         """
 
@@ -80,7 +80,7 @@ class UpdateWidgetsetTest extends IntegrationTest {
     @Test void 'AppWidgetset created when project contains addon dependencies'() {
         buildFile << """
             dependencies {
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation 'org.vaadin.addons:qrcode:+'
             }
         """
         runWithArguments(UpdateWidgetsetTask.NAME)
@@ -112,7 +112,7 @@ class UpdateWidgetsetTest extends IntegrationTest {
         File buildFile2 = makeBuildFile(project2Dir)
         buildFile2 << """
             dependencies {
-                compile project(':project1')
+                implementation project(':project1')
             }
         """
 
@@ -130,10 +130,10 @@ class UpdateWidgetsetTest extends IntegrationTest {
         buildFile << "vaadinCompile.widgetset = 'com.example.MyWidgetset'\n"
         buildFile << """
             dependencies {
-                compile("com.vaadin:vaadin-compatibility-server:8.0.0")
-                compile("com.vaadin:vaadin-compatibility-client:8.0.0")
-                compile("com.vaadin:vaadin-compatibility-shared:8.0.0")
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation("com.vaadin:vaadin-compatibility-server:8.12.2")
+                implementation("com.vaadin:vaadin-compatibility-client:8.12.2")
+                implementation("com.vaadin:vaadin-compatibility-shared:8.12.2")
+                implementation 'org.vaadin.addons:qrcode:+'
             }
         """
 

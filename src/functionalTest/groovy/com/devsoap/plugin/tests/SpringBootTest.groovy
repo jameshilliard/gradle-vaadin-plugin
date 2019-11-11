@@ -28,13 +28,14 @@ class SpringBootTest extends IntegrationTest {
 
     @Parameterized.Parameters(name = "Spring Boot {0}")
     static Collection<String> getSpringBootVersions() {
-        [ '1.5.3.RELEASE', '2.0.0.M7']
+        [ '2.4.2', '2.0.0.M7']
     }
 
     @Override
     protected void applyBuildScriptRepositories(File buildFile) {
         super.applyBuildScriptRepositories(buildFile)
         buildFile << """
+                mavenLocal()
                 maven { url 'https://plugins.gradle.org/m2/'}
                 maven { url 'https://repo.spring.io/libs-snapshot'}
         """.stripMargin()
@@ -90,12 +91,12 @@ class SpringBootTest extends IntegrationTest {
     }
 
     @Test void 'Use custom Spring Boot starter version'() {
-        buildFile << "vaadinSpringBoot.starterVersion = '2.0.0'\n"
+        buildFile << "vaadinSpringBoot.starterVersion = '3.2.1'\n"
 
         String dependencyInfo = runWithArguments('dependencyInsight',
                 '--configuration', GradleVaadinPlugin.CONFIGURATION_SPRING_BOOT,
                 '--dependency', 'vaadin-spring-boot-starter')
-        assertTrue dependencyInfo.contains('com.vaadin:vaadin-spring-boot-starter:2.0.0')
+        assertTrue dependencyInfo.contains('com.vaadin:vaadin-spring-boot-starter:3.2.1')
     }
 
     @Test void 'Validate Spring Boot executable jar'() {

@@ -48,7 +48,7 @@ class CompileWidgetsetTest extends IntegrationTest {
     @Test void 'No Widgetset defined, but addons exist in project'() {
         buildFile << """
             dependencies {
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation 'org.vaadin.addons:qrcode:+'
             }
         """
 
@@ -67,7 +67,7 @@ class CompileWidgetsetTest extends IntegrationTest {
     @Test void 'Compile with Vaadin CDN'() {
         buildFile << """
             dependencies {
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation 'org.vaadin.addons:qrcode:+'
             }
 
             vaadinCompile {
@@ -99,9 +99,9 @@ class CompileWidgetsetTest extends IntegrationTest {
     @Test void 'Compile with legacy dependencies'(){
         buildFile << """
             dependencies {
-                compile("com.vaadin:vaadin-compatibility-server:8.0.0")
-                compile("com.vaadin:vaadin-compatibility-client:8.0.0")
-                compile("com.vaadin:vaadin-compatibility-shared:8.0.0")
+                implementation("com.vaadin:vaadin-compatibility-server:8.12.2")
+                implementation("com.vaadin:vaadin-compatibility-client:8.12.2")
+                implementation("com.vaadin:vaadin-compatibility-shared:8.12.2")
             }
             vaadinCompile.widgetset = 'com.example.MyWidgetset'
         """
@@ -116,9 +116,9 @@ class CompileWidgetsetTest extends IntegrationTest {
     @Test void 'Compile with legacy dependencies and classpath jar'(){
         buildFile << """
             dependencies {
-                compile("com.vaadin:vaadin-compatibility-server:8.0.0")
-                compile("com.vaadin:vaadin-compatibility-client:8.0.0")
-                compile("com.vaadin:vaadin-compatibility-shared:8.0.0")
+                implementation("com.vaadin:vaadin-compatibility-server:8.12.2")
+                implementation("com.vaadin:vaadin-compatibility-client:8.12.2")
+                implementation("com.vaadin:vaadin-compatibility-shared:8.12.2")
             }
             vaadinCompile.widgetset = 'com.example.MyWidgetset'
             vaadin.useClassPathJar = true
@@ -135,7 +135,7 @@ class CompileWidgetsetTest extends IntegrationTest {
     @Test void 'Compile with upgraded validation-jar'() {
         buildFile << """
             dependencies {
-                compile 'javax.validation:validation-api:1.1.0.Final'              
+                implementation 'javax.validation:validation-api:1.0.0.GA'              
             }
             vaadinCompile.widgetset = 'com.example.MyWidgetset'
         """
@@ -178,9 +178,9 @@ class CompileWidgetsetTest extends IntegrationTest {
     @Category(WidgetsetCompile)
     @Test void 'Compile with third-party non-vaadin addon dependency'() {
         buildFile << """
-            vaadin.version = "7.7.7"
+            vaadin.version = "8.12.2"
             dependencies {
-                vaadinCompile "org.vaadin.addon:v-leaflet:0.5.7"
+                vaadinCompile "org.vaadin.addon:v-leaflet:3.0.0"
             }
             vaadinCompile.widgetset = 'com.example.MyWidgetset'
         """

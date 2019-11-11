@@ -8,6 +8,8 @@ import com.devsoap.plugin.tasks.CreateThemeTask
 import org.junit.Test
 import org.junit.experimental.categories.Category
 
+import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.jar.Manifest
 
@@ -69,8 +71,8 @@ class MultimoduleWidgetsetThemeTest extends MultiProjectIntegrationTest {
             project.tasks.vaadinUpdateAddonStyles.enabled = false
 
             dependencies {
-                compile project(':theme-module')
-                compile project(':widgetset-module')
+                implementation project(':theme-module')
+                implementation project(':widgetset-module')
             }
         """.stripIndent()
 
@@ -91,7 +93,7 @@ class MultimoduleWidgetsetThemeTest extends MultiProjectIntegrationTest {
             vaadin.useClassPathJar = true
 
             dependencies {
-                compile project(':theme-module')
+                implementation project(':theme-module')
             }
         """.stripIndent()
 
@@ -109,19 +111,19 @@ class MultimoduleWidgetsetThemeTest extends MultiProjectIntegrationTest {
         """.stripIndent()
 
         runWithArguments("$themeModule.name:$CreateThemeTask.NAME", '--name=AppTheme')
+        Thread.sleep(1000)
         runWithArguments(CreateProjectTask.NAME)
         runWithArguments(BuildClassPathJar.NAME)
 
-        File manifest = Paths.get(projectDir.root.canonicalPath,
-                'build', 'tmp', 'vaadinClassPathJar', 'MANIFEST.MF').toFile()
-        assertTrue 'Manifest did not exist', manifest.exists()
+        Path manifest = Paths.get(projectDir.root.canonicalPath,
+                'build', 'tmp', 'vaadinClassPathJar', 'MANIFEST.MF')
+        assertTrue 'Manifest did not exist', Files.exists(manifest)
 
-        manifest.withDataInputStream { stream ->
-            Manifest m = new Manifest(stream)
-            String cp = m.mainAttributes.getValue("Class-Path")
-            assertNotNull 'Attribute Class-Path not found in attributes '+m.mainAttributes, cp
-            assertTrue cp.contains('theme-module-1.jar')
-        }
+        InputStream stream = Files.newInputStream(manifest)
+        Manifest m = new Manifest(stream)
+        String cp = m.mainAttributes.getValue("Class-Path")
+        assertNotNull 'Attribute Class-Path not found in attributes '+m.mainAttributes, cp
+        assertTrue 'Jar theme-module-1.jar not found in Class-Path '+cp, cp.contains('theme-module-1.jar')
 
     }
 }

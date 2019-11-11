@@ -132,7 +132,7 @@ abstract class ApplicationServer {
         VaadinPluginExtension vaadin = project.extensions.getByType(VaadinPluginExtension)
         if ( vaadin.useClassPathJar ) {
             BuildClassPathJar pathJarTask = project.getTasksByName(BuildClassPathJar.NAME, true).first()
-            cp = project.files(pathJarTask.archivePath)
+            cp = project.files(pathJarTask.archiveFile)
         } else {
             cp = (Util.getWarClasspath(project) + project.configurations[GradleVaadinPlugin.CONFIGURATION_RUN_SERVER] )
                     .filter { it.file && it.canonicalFile.name.endsWith(JAR_FILE_POSTFIX)}
@@ -395,7 +395,7 @@ abstract class ApplicationServer {
      * @param stopAfterStart
      *      <code>true</code> if the server should stop right after it has started.
      */
-    protected void startAndBlock(boolean stopAfterStart=false) {
+    void startAndBlock(boolean stopAfterStart=false) {
         while(true) {
             // Keep main loop running so runTask does not end. Task
             // shutdownhook will terminate server

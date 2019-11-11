@@ -40,7 +40,6 @@ import java.util.jar.JarInputStream
  * @since 1.0
  */
 @Log
-@CacheableTask
 class UpdateWidgetsetTask extends DefaultTask {
 
     static final String NAME = 'vaadinUpdateWidgetset'
@@ -154,7 +153,7 @@ class UpdateWidgetsetTask extends DefaultTask {
                     if ( !(dependentProject in scannedProjects) ) {
                         inherits.addAll(findInheritsInDependencies(dependentProject, scannedProjects))
                     }
-                } else if (Util.isResolvable(project, conf)) {
+                } else if (Util.isResolvable(project, conf) && !Util.isDeprecated(conf)) {
                     conf.files(dependency).each { File file ->
                         if ( file.file && file.name.endsWith('.jar') ) {
                             file.withInputStream { InputStream stream ->

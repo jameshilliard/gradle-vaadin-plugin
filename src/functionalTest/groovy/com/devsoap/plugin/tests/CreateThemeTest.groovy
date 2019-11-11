@@ -66,7 +66,8 @@ class CreateThemeTest extends IntegrationTest {
         customThemesDir.deleteOnExit()
         println "Created themes in $customThemesDir"
 
-        buildFile << "vaadinThemeCompile.themesDirectory = '$customThemesDir.canonicalPath'"
+        String escapedDir = customThemesDir.canonicalPath.replace("\\","\\\\")
+        buildFile << "vaadinThemeCompile.themesDirectory = '$escapedDir'"
         runWithArguments(CreateThemeTask.NAME)
 
         assertThemeInDirectory(customThemesDir, projectDir.root.name)

