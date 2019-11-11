@@ -1,12 +1,13 @@
 package com.devsoap.plugin.tests
 
 import com.devsoap.plugin.tasks.UpdateWidgetsetTask
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
-import java.nio.file.Paths
+import java.nio.file.Files
+import java.nio.file.Path
 
-import static org.junit.Assert.assertTrue
-import static org.junit.Assert.assertFalse
+import static org.junit.jupiter.api.Assertions.assertTrue
+import static org.junit.jupiter.api.Assertions.assertFalse
 
 /**
  * Created by john on 20.1.2016.
@@ -15,27 +16,27 @@ class UpdateWidgetsetTest extends IntegrationTest {
 
     @Test void 'No Widgetset generated without property'() {
         runWithArguments(UpdateWidgetsetTask.NAME)
-        assertFalse widgetsetFile.exists()
+        assertFalse Files.exists(widgetsetFile)
     }
 
     @Test void 'No Widgetset generated when widgetset management off'() {
         buildFile << "vaadinCompile.widgetset = 'com.example.MyWidgetset'\n"
         buildFile << "vaadinCompile.manageWidgetset = false"
         runWithArguments(UpdateWidgetsetTask.NAME)
-        assertFalse widgetsetFile.exists()
+        assertFalse Files.exists(widgetsetFile)
     }
 
     @Test void 'Widgetset generated into resource folder'() {
         buildFile << "vaadinCompile.widgetset = 'com.example.MyWidgetset'"
         runWithArguments(UpdateWidgetsetTask.NAME)
-        assertTrue widgetsetFile.exists()
+        assertTrue Files.exists(widgetsetFile)
     }
 
     @Test void 'Widgetset file contains addon widgetset inherits'() {
         buildFile << "vaadinCompile.widgetset = 'com.example.MyWidgetset'\n"
         buildFile << """
             dependencies {
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation 'org.vaadin.addons:qrcode:+'
             }
         """
 
@@ -47,23 +48,23 @@ class UpdateWidgetsetTest extends IntegrationTest {
         buildFile << "vaadinCompile.widgetset = 'com.example.MyWidgetset'\n"
 
         // Setup project 1
-        File project1Dir = projectDir.newFolder('project1')
-        project1Dir.mkdirs()
-        File buildFile1 = makeBuildFile(project1Dir)
+        Path project1Dir = projectDir.resolve('project1')
+        Files.createDirectories(project1Dir)
+        Path buildFile1 = makeBuildFile(project1Dir)
         buildFile1 << """
             dependencies {
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation 'org.vaadin.addons:qrcode:+'
             }
         """
 
         // Setup project 2
-        File project2Dir = projectDir.newFolder('project2')
-        project2Dir.mkdirs()
-        File buildFile2 = makeBuildFile(project2Dir)
+        Path project2Dir = projectDir.resolve('project2')
+        Files.createDirectories(project2Dir)
+        Path buildFile2 = makeBuildFile(project2Dir)
         buildFile2 << "vaadinCompile.widgetset = 'com.example.MyWidgetset'\n"
         buildFile2 << """
             dependencies {
-                compile project(':project1')
+                implementation project(':project1')
             }
         """
 
@@ -80,39 +81,39 @@ class UpdateWidgetsetTest extends IntegrationTest {
     @Test void 'AppWidgetset created when project contains addon dependencies'() {
         buildFile << """
             dependencies {
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation 'org.vaadin.addons:qrcode:+'
             }
         """
         runWithArguments(UpdateWidgetsetTask.NAME)
-        assertTrue appWidgetsetFile.exists()
+        assertTrue Files.exists(appWidgetsetFile)
         assertTrue appWidgetsetFile.text.contains('<inherits name="fi.jasoft.qrcode.QrcodeWidgetset" />')
     }
 
     @Test void 'AppWidgetset created when dependant project contains widgetset file'() {
 
         // Setup addon project
-        File project1Dir = projectDir.newFolder('project1')
-        project1Dir.mkdirs()
+        Path project1Dir = projectDir.resolve('project1')
+        Files.createDirectories(project1Dir)
 
-        File widgetsetFile = getWidgetsetFile(project1Dir)
-        widgetsetFile.parentFile.mkdirs()
-        widgetsetFile.createNewFile()
+        Path widgetsetFile = getWidgetsetFile(project1Dir)
+        Files.createDirectories(widgetsetFile.parent)
+        Files.createFile(widgetsetFile)
         widgetsetFile.text = """
             <module>
                 <inherits name="com.vaadin.DefaultWidgetSet" />
             </module>
         """.stripIndent()
 
-        File buildFile1 = makeBuildFile(project1Dir)
+        Path buildFile1 = makeBuildFile(project1Dir)
         buildFile1 << "vaadinCompile.widgetset = 'com.example.MyWidgetset'\n"
 
         // Setup demo project
-        File project2Dir = projectDir.newFolder('project2')
-        project2Dir.mkdirs()
-        File buildFile2 = makeBuildFile(project2Dir)
+        Path project2Dir = projectDir.resolve('project2')
+        Files.createDirectories(project2Dir)
+        Path buildFile2 = makeBuildFile(project2Dir)
         buildFile2 << """
             dependencies {
-                compile project(':project1')
+                implementation project(':project1')
             }
         """
 
@@ -130,10 +131,10 @@ class UpdateWidgetsetTest extends IntegrationTest {
         buildFile << "vaadinCompile.widgetset = 'com.example.MyWidgetset'\n"
         buildFile << """
             dependencies {
-                compile("com.vaadin:vaadin-compatibility-server:8.0.0")
-                compile("com.vaadin:vaadin-compatibility-client:8.0.0")
-                compile("com.vaadin:vaadin-compatibility-shared:8.0.0")
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation("com.vaadin:vaadin-compatibility-server:8.12.2")
+                implementation("com.vaadin:vaadin-compatibility-client:8.12.2")
+                implementation("com.vaadin:vaadin-compatibility-shared:8.12.2")
+                implementation 'org.vaadin.addons:qrcode:+'
             }
         """
 
@@ -142,12 +143,13 @@ class UpdateWidgetsetTest extends IntegrationTest {
         assertFalse widgetsetFile.text.contains('<inherits name="com.vaadin.DefaultWidgetSet" />')
     }
 
-    private File getWidgetsetFile(File projectDir = this.projectDir.root, String fileName='MyWidgetset') {
-        Paths.get(projectDir.canonicalPath,
-                'src', 'main', 'resources', 'com', 'example', "${fileName}.gwt.xml").toFile()
+    private Path getWidgetsetFile(Path projectDir = this.projectDir, String fileName='MyWidgetset') {
+        projectDir.resolve('src').resolve('main').resolve('resources')
+                .resolve('com').resolve('example').resolve("${fileName}.gwt.xml")
     }
 
-    private File getAppWidgetsetFile(File projectDir = this.projectDir.root) {
-        Paths.get(projectDir.canonicalPath,'src', 'main', 'resources', "AppWidgetset.gwt.xml").toFile()
+    private Path getAppWidgetsetFile(Path projectDir = this.projectDir) {
+        projectDir.resolve('src').resolve('main').resolve('resources')
+                .resolve("AppWidgetset.gwt.xml")
     }
 }

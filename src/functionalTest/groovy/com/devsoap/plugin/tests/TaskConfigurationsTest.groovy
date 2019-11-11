@@ -1,13 +1,15 @@
 package com.devsoap.plugin.tests
 
-import com.devsoap.plugin.categories.WidgetsetCompile
 import com.devsoap.plugin.tasks.CreateDirectoryZipTask
-import org.junit.Ignore
-import org.junit.Test
-import org.junit.experimental.categories.Category
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
 
-import static org.junit.Assert.assertTrue
-import static org.junit.Assert.assertFalse
+import java.nio.file.Files
+import java.nio.file.Path
+
+import static org.junit.jupiter.api.Assertions.assertTrue
+import static org.junit.jupiter.api.Assertions.assertFalse
 
 /**
  * Created by john on 1/6/15.
@@ -42,13 +44,13 @@ class TaskConfigurationsTest extends IntegrationTest {
 
         def result = runWithArguments('verifyEclipseClassPath')
 
-        assertTrue result, result.contains( 'Download sources true')
-        assertTrue result, result.contains( 'Eclipse output dir null')
+        assertTrue result.contains( 'Download sources true'), result
+        assertTrue result.contains( 'Eclipse output dir null'), result
 
-        assertTrue result, result.contains( 'Server in classpath true')
-        assertTrue result, result.contains( 'Client in classpath true')
+        assertTrue result.contains( 'Server in classpath true'), result
+        assertTrue result.contains( 'Client in classpath true'), result
       
-        assertTrue result, result.contains( 'Springsource nature true')
+        assertTrue result.contains( 'Springsource nature true'), result
     }
 
     @Test void 'Eclipse configuration with custom output dir'() {
@@ -68,7 +70,7 @@ class TaskConfigurationsTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('verifyOutputDir')
-        assertTrue result, result.contains('Default output dir is set to eclipseOutputDir true')
+        assertTrue result.contains('Default output dir is set to eclipseOutputDir true'), result
     }
 
     @Test void 'Eclipse configuration with Testbench enabled'() {
@@ -109,10 +111,10 @@ class TaskConfigurationsTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('verifyWTP')
-        assertTrue result, result.contains('Server in components true')
+        assertTrue result.contains('Server in components true'), result
     }
 
-    @Ignore("Extra facets currently disabled")
+    @Disabled("Extra facets currently disabled")
     @Test void 'Eclipse WTP facet configuration'() {
 
         buildFile << """
@@ -133,9 +135,9 @@ class TaskConfigurationsTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('verifyWTP')
-        assertTrue result, result.contains('Vaadin Facet version 7.0')
-        assertTrue result, result.contains('jst.web Facet version 3.0')
-        assertTrue result, result.contains('Java Facet version equals sourceCompatibility true')
+        assertTrue result.contains('Vaadin Facet version 7.0'), result
+        assertTrue result.contains('jst.web Facet version 3.0'), result
+        assertTrue result.contains('Java Facet version equals sourceCompatibility true'), result
     }
 
     @Test void 'IDEA default configuration'() {
@@ -164,15 +166,15 @@ class TaskConfigurationsTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('verifyIdeaModule')
-        assertTrue result, result.contains('Module and Project name is equal true')
-        assertTrue result, result.contains('Output dir is classes dir true')
-        assertTrue result, result.contains('Test output dir is classes dir true')
+        assertTrue result.contains('Module and Project name is equal true'), result
+        assertTrue result.contains('Output dir is classes dir true'), result
+        assertTrue result.contains('Test output dir is classes dir true'), result
 
-        assertTrue result, result.contains('Download Javadoc true')
-        assertTrue result, result.contains('Download Sources true')
+        assertTrue result.contains('Download Javadoc true'), result
+        assertTrue result.contains('Download Sources true'), result
 
-        assertTrue result, result.contains('Server configuration included true')
-        assertTrue result, result.contains('Client configuration included true')
+        assertTrue result.contains('Server configuration included true'), result
+        assertTrue result.contains('Client configuration included true'), result
     }
 
     @Test void 'IDEA configuration with Testbench'() {
@@ -197,7 +199,7 @@ class TaskConfigurationsTest extends IntegrationTest {
 
         def result = runWithArguments('verifyTestBench')
 
-        assertTrue result, result.contains('Test configuration has testbench true')
+        assertTrue result.contains('Test configuration has testbench true'), result
     }
 
     @Test void 'IDEA configuration with push'() {
@@ -221,7 +223,7 @@ class TaskConfigurationsTest extends IntegrationTest {
 
         def result = runWithArguments('verifyPush')
 
-        assertTrue result, result.contains('Compile configuration has push true')
+        assertTrue result.contains('Compile configuration has push true'), result
     }
 
     @Test void 'Update widgetset generator before compile'() {
@@ -243,10 +245,10 @@ class TaskConfigurationsTest extends IntegrationTest {
 
         def result = runWithArguments('verifyWidgetsetGenerator')
 
-        assertTrue result, result.contains('Generator File was created true')
+        assertTrue result.contains('Generator File was created true'), result
     }
 
-    @Category(WidgetsetCompile)
+    @Tag("WidgetsetCompile")
     @Test void 'Compile with a widgetset generator'() {
         buildFile << """
              vaadinCompile {
@@ -258,7 +260,7 @@ class TaskConfigurationsTest extends IntegrationTest {
         runWithArguments('vaadinCreateWidgetsetGenerator')
 
         String result = runWithArguments('vaadinCompile')
-        assertTrue result, result.contains('BUILD SUCCESSFUL')
+        assertTrue result.contains('BUILD SUCCESSFUL'), result
     }
 
     @Test void 'Fail if widgetset generator in client package'() {
@@ -270,7 +272,7 @@ class TaskConfigurationsTest extends IntegrationTest {
         """.stripIndent()
 
         String result = runFailureExpected('vaadinCreateWidgetsetGenerator')
-        assertTrue result, result.contains('Widgetset generator cannot be placed inside the client package')
+        assertTrue result.contains('Widgetset generator cannot be placed inside the client package'), result
     }
 
     @Test void 'Addon Jar Metadata'() {
@@ -302,12 +304,12 @@ class TaskConfigurationsTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('verifyAddonJarManifest')
-        assertTrue result, result.contains('Vaadin-Widgetsets com.example.Widgetset')
-        assertTrue result, result.contains('Implementation-Title test-addon')
-        assertTrue result, result.contains('Implementation-Version 1.2.3')
-        assertTrue result, result.contains('Implementation-Vendor test-author')
-        assertTrue result, result.contains('Vaadin-License-Title my-license')
-        assertTrue result, result.contains('Vaadin-Package-Version 1')
+        assertTrue result.contains('Vaadin-Widgetsets com.example.Widgetset'), result
+        assertTrue result.contains('Implementation-Title test-addon'), result
+        assertTrue result.contains('Implementation-Version 1.2.3'), result
+        assertTrue result.contains('Implementation-Vendor test-author'), result
+        assertTrue result.contains('Vaadin-License-Title my-license'), result
+        assertTrue result.contains('Vaadin-Package-Version 1'), result
     }
 
     @Test void 'Addon Zip Metadata'() {
@@ -341,15 +343,16 @@ class TaskConfigurationsTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('verifyAddonZipManifest')
-        assertTrue result, result.contains('Zip manifest exists true')
-        assertTrue result, result.contains('Implementation-Title test-addon')
-        assertTrue result, result.contains('Implementation-Version 1.2.3')
-        assertTrue result, result.contains('Implementation-Vendor test-author')
-        assertTrue result, result.contains('Vaadin-License-Title my-license')
+        assertTrue result.contains('Zip manifest exists true'), result
+        assertTrue result.contains('Implementation-Title test-addon'), result
+        assertTrue result.contains('Implementation-Version 1.2.3'), result
+        assertTrue result.contains('Implementation-Vendor test-author'), result
+        assertTrue result.contains('Vaadin-License-Title my-license'), result
     }
 
     @Test void 'Plugin task configurations are not applied on non-vaadin sub-projects'() {
-        File projectDir = projectDir.newFolder('noVaadinSubProject')
+        Path projectDir = projectDir.resolve('noVaadinSubProject')
+        Files.createDirectories(projectDir)
         settingsFile << "include 'noVaadinSubProject'\n"
 
         buildFile << """
@@ -361,7 +364,7 @@ class TaskConfigurationsTest extends IntegrationTest {
 
         // Vaadin jar configurations are not applied to subproject
         def result = runWithArguments(':noVaadinSubProject:jar')
-        assertFalse result, result.contains('No addon title has been specified')
-        assertFalse result, result.contains('No version specified for the project')
+        assertFalse result.contains('No addon title has been specified'), result
+        assertFalse result.contains('No version specified for the project'), result
     }
 }

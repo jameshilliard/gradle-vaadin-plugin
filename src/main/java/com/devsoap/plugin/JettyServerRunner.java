@@ -19,6 +19,7 @@ import org.eclipse.jetty.annotations.AnnotationConfiguration;
 import org.eclipse.jetty.plus.webapp.EnvConfiguration;
 import org.eclipse.jetty.plus.webapp.PlusConfiguration;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.util.component.AbstractLifeCycle;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.webapp.Configuration;
@@ -30,9 +31,12 @@ import org.eclipse.jetty.webapp.WebAppContext;
 import org.eclipse.jetty.webapp.WebInfConfiguration;
 import org.eclipse.jetty.webapp.WebXmlConfiguration;
 
-import java.io.File;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EventListener;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -58,7 +62,7 @@ public class JettyServerRunner {
         //String logLevel = args[4];
 
         List<String> resources = new ArrayList<>();
-        if (new File(webAppDir).exists()){
+        if (Files.exists(Paths.get(webAppDir))){
             resources.add(webAppDir);
         }
 
@@ -94,34 +98,44 @@ public class JettyServerRunner {
         });
         handler.setClassLoader(new WebAppClassLoader(JettyServerRunner.class.getClassLoader(), handler));
 
-        server.addLifeCycleListener(new LifeCycle.Listener() {
-            @Override
-            public void lifeCycleStarting(LifeCycle event) {
-                Logger.getLogger(JettyServerRunner.class.getName()).info(SERVER_STARTING_TOKEN);
-            }
-
-            @Override
-            public void lifeCycleStarted(LifeCycle event) {
-                Logger.getLogger(JettyServerRunner.class.getName()).info(SERVER_STARTED_TOKEN);
-            }
-
-            @Override
-            public void lifeCycleFailure(LifeCycle event, Throwable cause) {
-                Logger.getLogger(JettyServerRunner.class.getName()).info(SERVER_FAILED_TOKEN);
-            }
-
-            @Override
-            public void lifeCycleStopping(LifeCycle event) {
-                Logger.getLogger(JettyServerRunner.class.getName()).info(SERVER_STOPPING_TOKEN);
-            }
-
-            @Override
-            public void lifeCycleStopped(LifeCycle event) {
-                Logger.getLogger(JettyServerRunner.class.getName()).info(SERVER_STOPPED_TOKEN);
-            }
-        });
+        Method method;
+        try {
+            // Jetty <= 9
+            method = Server.class.getMethod("addLifeCycleListener", LifeCycle.Listener.class);
+        } catch (NoSuchMethodException e) {
+            // Jetty >= 10
+            method = Server.class.getMethod("addEventListener", EventListener.class);
+        }
+        method.invoke(server, new JettyServerRunner.Listener());
 
         server.start();
         server.join();
+    }
+
+    private static class Listener extends AbstractLifeCycle.AbstractLifeCycleListener {
+        @Override
+        public void lifeCycleStarting(LifeCycle event) {
+            Logger.getLogger(JettyServerRunner.class.getName()).info(SERVER_STARTING_TOKEN);
+        }
+
+        @Override
+        public void lifeCycleStarted(LifeCycle event) {
+            Logger.getLogger(JettyServerRunner.class.getName()).info(SERVER_STARTED_TOKEN);
+        }
+
+        @Override
+        public void lifeCycleFailure(LifeCycle event, Throwable cause) {
+            Logger.getLogger(JettyServerRunner.class.getName()).info(SERVER_FAILED_TOKEN);
+        }
+
+        @Override
+        public void lifeCycleStopping(LifeCycle event) {
+            Logger.getLogger(JettyServerRunner.class.getName()).info(SERVER_STOPPING_TOKEN);
+        }
+
+        @Override
+        public void lifeCycleStopped(LifeCycle event) {
+            Logger.getLogger(JettyServerRunner.class.getName()).info(SERVER_STOPPED_TOKEN);
+        }
     }
 }

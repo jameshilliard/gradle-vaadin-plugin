@@ -34,7 +34,8 @@ import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.language.jvm.tasks.ProcessResources
 
-import java.nio.file.Paths
+import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * Actions applied when the java plugin is added to the build
@@ -117,15 +118,15 @@ class JavaPluginAction extends PluginAction {
     }
 
     private static ensureWidgetsetGeneratorExists(Task task) {
-        CompileWidgetsetTask compileWidgetsetTask = task.project.tasks.getByName(CompileWidgetsetTask.NAME)
+        CompileWidgetsetTask compileWidgetsetTask = task.project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
         String generator = compileWidgetsetTask.widgetsetGenerator
         if ( generator != null ) {
             String name = generator.tokenize('.').last()
             String pkg = generator.replaceAll(".$name", '')
             String filename = "${name}.java"
-            File javaDir = Util.getMainSourceSet(task.project).srcDirs.iterator().next()
-            File f = Paths.get(javaDir.canonicalPath, TemplateUtil.convertFQNToFilePath(pkg), filename).toFile()
-            if ( !f.exists() ) {
+            Path javaDir = Util.getMainSourceSet(task.project).srcDirs.iterator().next().toPath()
+            Path f = javaDir.resolve(TemplateUtil.convertFQNToFilePath(pkg)).resolve(filename)
+            if ( !Files.exists(f) ) {
                 task.project.tasks[CreateWidgetsetGeneratorTask.NAME].run()
             }
         }
@@ -133,7 +134,7 @@ class JavaPluginAction extends PluginAction {
 
     private static configureAddonMetadata(Task task) {
         Project project = task.project
-        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
 
         // Resolve widgetset
         String widgetset = compileWidgetsetTask.widgetset
@@ -142,10 +143,10 @@ class JavaPluginAction extends PluginAction {
         }
 
         // Scan for existing manifest in source folder and reuse if possible
-        File manifest = getManifest(task)
+        Path manifest = getManifest(task)
         if ( manifest != null ) {
             project.logger.warn('Manifest found in project, possibly overwriting existing values.')
-            task.manifest.from(manifest)
+            task.manifest.from(manifest.toFile())
         }
 
         //Validate values
@@ -252,17 +253,17 @@ class JavaPluginAction extends PluginAction {
         task.options.addStringOption('sourcepath', '')
     }
 
-    private static File getManifest(Task task) {
+    private static Path getManifest(Task task) {
         Project project = task.project
         List sources = Util.getMainSourceSet(project).srcDirs.asList()
         sources.addAll(project.sourceSets.main.resources.srcDirs.asList())
 
-        File manifest = null
+        Path manifest = null
         sources.each {
             project.fileTree(it).matching({
                 include '**/META-INF/MANIFEST.MF'
             }).each {
-                manifest = it
+                manifest = it.toPath()
             }
         }
         return manifest

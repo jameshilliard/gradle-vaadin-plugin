@@ -2,13 +2,14 @@ package com.devsoap.plugin.tests
 
 import com.devsoap.plugin.tasks.CreateProjectTask
 import com.devsoap.plugin.tasks.RunTask
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
-import java.nio.file.Paths
+import java.nio.file.Files
+import java.nio.file.Path
 
-import static org.junit.Assert.assertEquals
-import static org.junit.Assert.assertTrue
-import static org.junit.Assert.fail
+import static org.junit.jupiter.api.Assertions.assertEquals
+import static org.junit.jupiter.api.Assertions.assertTrue
+import static org.junit.jupiter.api.Assertions.fail
 
 /**
  * Created by john on 7/13/16.
@@ -16,7 +17,7 @@ import static org.junit.Assert.fail
 class GroovyProjectTest extends IntegrationTest {
 
     @Override
-    protected void applyThirdPartyPlugins(File buildFile) {
+    protected void applyThirdPartyPlugins(Path buildFile) {
         super.applyThirdPartyPlugins(buildFile)
         buildFile << """
            plugins {
@@ -24,7 +25,7 @@ class GroovyProjectTest extends IntegrationTest {
            }
 
            dependencies {
-                compile 'org.codehaus.groovy:groovy-all:2.4.+'
+                implementation localGroovy()
            }
 
         """.stripIndent()
@@ -38,22 +39,24 @@ class GroovyProjectTest extends IntegrationTest {
     @Test void 'Create Groovy Project'() {
         runWithArguments(CreateProjectTask.NAME)
 
-        File sourceFolder = Paths.get(projectDir.root.canonicalPath, 'src','main','groovy').toFile()
-        assertTrue('Source folder did not exist', sourceFolder.exists())
+        Path sourceFolder = projectDir.resolve('src').resolve('main').resolve('groovy')
+        assertTrue(Files.exists(sourceFolder), 'Source folder did not exist')
 
-        File packageFolder = Paths.get(sourceFolder.canonicalPath, 'com', 'example', projectDir.root.name).toFile()
-        assertTrue('Package did not exist', packageFolder.exists())
+        Path packageFolder = sourceFolder.resolve('com').resolve('example').resolve(projectDir.getFileName().toString())
+        assertTrue(Files.exists(packageFolder), 'Package did not exist')
 
-        assertEquals("There should be 2 files, found ${packageFolder.list().length}", 2, packageFolder.list().length)
-        packageFolder.eachFile { File file ->
-            if(!file.name.endsWith('.groovy')){
-                fail "Only groovy files should exist, found $file.name"
+        assertEquals(2, Files.list(packageFolder).withCloseable { it.count() }, "There should be 2 files, found ${Files.list(packageFolder).count()}")
+        Files.list(packageFolder).withCloseable {
+            it.each { Path file ->
+                if (!file.getFileName().toString().endsWith('.groovy')) {
+                    fail "Only groovy files should exist, found ${file.getFileName().toString()}"
+                }
             }
         }
     }
 
     private void assertServerRunning(String output) {
-        assertTrue output, output.contains('Application running on ')
+        assertTrue output.contains('Application running on '), output
     }
 
 }

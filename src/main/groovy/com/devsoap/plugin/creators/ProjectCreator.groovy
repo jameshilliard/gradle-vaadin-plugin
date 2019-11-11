@@ -19,6 +19,9 @@ import com.devsoap.plugin.ProjectType
 import com.devsoap.plugin.TemplateUtil
 import groovy.transform.Canonical
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * Creates a new Vaadin project using pre-defined templates
  *
@@ -66,12 +69,12 @@ class ProjectCreator implements Runnable {
     /**
      * The java source directory
      */
-    File javaDir
+    Path javaDir
 
     /**
      * The resource source directory
      */
-    File resourceDir
+    Path resourceDir
 
     /**
      * The tempalte directory
@@ -96,7 +99,7 @@ class ProjectCreator implements Runnable {
     /**
      * Substitution values in the Servlet class
      */
-    Map<String, String> servletSubstitutions = [:]
+    Map<String, Object> servletSubstitutions = [:]
 
     /**
      * Spring boot substitutions
@@ -126,7 +129,7 @@ class ProjectCreator implements Runnable {
         }
     }
 
-    private File makeUIClass() {
+    private Path makeUIClass() {
 
         uiSubstitutions[APPLICATION_NAME_KEY] = applicationName
         uiSubstitutions[APPLICATION_PACKAGE_KEY] = applicationPackage
@@ -166,7 +169,7 @@ class ProjectCreator implements Runnable {
 
         uiSubstitutions['annotations'] = uiAnnotations
 
-        File uiClass
+        Path uiClass
         switch (projectType) {
             case ProjectType.GROOVY:
                 TemplateUtil.writeTemplate(
@@ -174,7 +177,7 @@ class ProjectCreator implements Runnable {
                         UIDir,
                         "${applicationName}UI.groovy",
                         uiSubstitutions)
-                uiClass = new File(UIDir, "${applicationName}UI.groovy")
+                uiClass = UIDir.resolve("${applicationName}UI.groovy")
                 break
 
             case ProjectType.KOTLIN:
@@ -183,7 +186,7 @@ class ProjectCreator implements Runnable {
                         UIDir,
                         "${applicationName}UI.kt",
                         uiSubstitutions)
-                uiClass = new File(UIDir, "${applicationName}UI.kt")
+                uiClass = UIDir.resolve("${applicationName}UI.kt")
                 break
 
             case ProjectType.JAVA:
@@ -192,12 +195,12 @@ class ProjectCreator implements Runnable {
                         UIDir,
                         "${applicationName}UI.java",
                         uiSubstitutions)
-                uiClass = new File (UIDir, "${applicationName}UI.java")
+                uiClass = UIDir.resolve("${applicationName}UI.java")
         }
         uiClass
     }
 
-    private File makeServletClass() {
+    private Path makeServletClass() {
 
         servletSubstitutions[APPLICATION_NAME_KEY] = applicationName
         servletSubstitutions[APPLICATION_PACKAGE_KEY] = applicationPackage
@@ -215,66 +218,66 @@ class ProjectCreator implements Runnable {
 
         servletSubstitutions['initParams'] = initParams
 
-        File servletClass
+        Path servletClass
         switch (projectType) {
             case ProjectType.GROOVY:
                 TemplateUtil.writeTemplate("$templateDir/MyServlet.groovy",
                         UIDir, "${applicationName}Servlet.groovy", servletSubstitutions)
-                servletClass = new File(UIDir, "${applicationName}Servlet.groovy")
+                servletClass = UIDir.resolve("${applicationName}Servlet.groovy")
                 break
             case ProjectType.KOTLIN:
                 TemplateUtil.writeTemplate("$templateDir/MyServlet.kt",
                         UIDir, "${applicationName}Servlet.kt", servletSubstitutions)
-                servletClass = new File(UIDir, "${applicationName}Servlet.kt")
+                servletClass = UIDir.resolve("${applicationName}Servlet.kt")
                 break
             case ProjectType.JAVA:
                 TemplateUtil.writeTemplate("$templateDir/MyServlet.java",
                         UIDir, "${applicationName}Servlet.java", servletSubstitutions)
-                servletClass = new File(UIDir, "${applicationName}Servlet.java")
+                servletClass = UIDir.resolve("${applicationName}Servlet.java")
         }
 
         servletClass
     }
 
-    private File makeBeansXML() {
+    private Path makeBeansXML() {
         TemplateUtil.writeTemplate("$templateDir/beans.xml", metaInfDir, 'beans.xml')
     }
 
-    private File makeSpringBootApplicationClass() {
+    private Path makeSpringBootApplicationClass() {
 
         bootSubstitutions[APPLICATION_NAME_KEY] = applicationName
         bootSubstitutions[APPLICATION_PACKAGE_KEY] = applicationPackage
 
-        File applicationClass
+        Path applicationClass
         switch (projectType) {
             case ProjectType.GROOVY:
                 TemplateUtil.writeTemplate("$templateDir/SpringBootApplication.groovy",
                         UIDir, "${applicationName}Application.groovy", bootSubstitutions)
-                applicationClass = new File(UIDir, "${applicationName}Application.groovy")
+                applicationClass = UIDir.resolve("${applicationName}Application.groovy")
                 break
             case ProjectType.KOTLIN:
                 TemplateUtil.writeTemplate("$templateDir/SpringBootApplication.kt",
                         UIDir, "${applicationName}Application.kt", bootSubstitutions)
-                applicationClass = new File(UIDir, "${applicationName}Application.kt")
+                applicationClass = UIDir.resolve("${applicationName}Application.kt")
                 break
             case ProjectType.JAVA:
                 TemplateUtil.writeTemplate("$templateDir/SpringBootApplication.java",
                         UIDir, "${applicationName}Application.java", bootSubstitutions)
-                applicationClass = new File(UIDir, "${applicationName}Application.java")
+                applicationClass = UIDir.resolve("${applicationName}Application.java")
         }
 
         applicationClass
     }
 
-    private File getUIDir() {
-        File uidir = new File(javaDir, TemplateUtil.convertFQNToFilePath(applicationPackage))
-        uidir.mkdirs()
+    private Path getUIDir() {
+        Path uidir = javaDir.resolve(TemplateUtil.convertFQNToFilePath(applicationPackage))
+        Files.createDirectories(uidir)
         uidir
     }
 
-    private File getMetaInfDir() {
-        File metaInf = new File(resourceDir, 'META-INF')
-        metaInf.mkdirs()
+    private Path getMetaInfDir() {
+        Path metaInf = resourceDir.resolve('META-INF')
+        Files.createDirectories(metaInf)
         metaInf
     }
 }

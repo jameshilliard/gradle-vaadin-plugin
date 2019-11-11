@@ -1,36 +1,29 @@
 package com.devsoap.plugin.tests
 
-import com.devsoap.plugin.categories.WidgetsetAndThemeCompile
 import org.gradle.testkit.runner.GradleRunner
-import org.junit.Test
-import org.junit.experimental.categories.Category
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
+
+import java.nio.file.Path
+import java.util.stream.Stream
 
 /**
  * Smoke test for different gradle versions
  */
-@RunWith(Parameterized)
-@Category(WidgetsetAndThemeCompile)
+@Tag("WidgetsetAndThemeCompile")
 class GradleVersionTest extends IntegrationTest {
 
-    final String gradleVersion
+    String gradleVersion
 
-    GradleVersionTest(String gradleVersion) {
-        this.gradleVersion = gradleVersion
-    }
+    GradleVersionTest() {}
 
-    @Parameterized.Parameters(name = "Gradle {0}")
-    static Collection<String> getGradleVersions() {
-        [ '5.6']
-    }
-
-    @Override
-    protected GradleRunner setupRunner(File projectDir = this.projectDir.root) {
-        return super.setupRunner(projectDir).withGradleVersion(gradleVersion)
+    static Stream<String> getGradleVersions() {
+        return Stream.of('6.8.3')
     }
 
     IntegrationTest setupTest(IntegrationTest test) {
+        test.gradleVersion = gradleVersion
         test.projectDir = projectDir
         test.buildFile = buildFile
         test.settingsFile = settingsFile
@@ -38,25 +31,31 @@ class GradleVersionTest extends IntegrationTest {
         test
     }
 
-    @Test void 'Compile Widgetset'() {
+    @MethodSource("getGradleVersions")
+    @ParameterizedTest void 'Compile Widgetset'(String gradleVersion) {
+        this.gradleVersion = gradleVersion
         setupTest(new CompileWidgetsetTest(){
-            protected GradleRunner setupRunner(File projectDir) {
+            protected GradleRunner setupRunner(Path projectDir) {
                 return GradleVersionTest.this.setupRunner(projectDir)
             }
         }).'Widgetset defined, manual widgetset detected and compiled'()
     }
 
-    @Test void 'Compile Theme'() {
-        setupTest(new CreateThemeTest('vaadin'){
-            protected GradleRunner setupRunner(File projectDir) {
+    @MethodSource("getGradleVersions")
+    @ParameterizedTest void 'Compile Theme'(String gradleVersion) {
+        this.gradleVersion = gradleVersion
+        setupTest(new CreateThemeTest(){
+            protected GradleRunner setupRunner(Path projectDir) {
                 return GradleVersionTest.this.setupRunner(projectDir)
             }
-        }).'Create default theme'()
+        }).'Create default theme'('vaadin')
     }
 
-    @Test void 'Ensure dependencies are correct'() {
+    @MethodSource("getGradleVersions")
+    @ParameterizedTest void 'Ensure dependencies are correct'(String gradleVersion) {
+        this.gradleVersion = gradleVersion
         setupTest(new ProjectDependenciesTest(){
-            protected GradleRunner setupRunner(File projectDir) {
+            protected GradleRunner setupRunner(Path projectDir) {
                 return GradleVersionTest.this.setupRunner(projectDir)
             }
         }).'Project has Vaadin configurations'()

@@ -3,16 +3,17 @@ package com.devsoap.plugin.tests
 import com.devsoap.plugin.tasks.BuildJavadocJarTask
 import com.devsoap.plugin.tasks.CreateDirectoryZipTask
 import com.devsoap.plugin.tasks.CreateProjectTask
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
-import java.nio.file.Paths
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
-import static org.junit.Assert.assertEquals
-import static org.junit.Assert.assertFalse
-import static org.junit.Assert.assertTrue
-import static org.junit.Assert.fail
+import static org.junit.jupiter.api.Assertions.assertEquals
+import static org.junit.jupiter.api.Assertions.assertFalse
+import static org.junit.jupiter.api.Assertions.assertTrue
+import static org.junit.jupiter.api.Assertions.fail
 
 /**
  * Created by john on 1/7/17.
@@ -23,12 +24,12 @@ class JavadocTest extends IntegrationTest {
         runWithArguments(CreateProjectTask.NAME)
 
         String result = runWithArguments(BuildJavadocJarTask.NAME)
-        assertFalse result, result.contains('warnings')
+        assertFalse result.contains('warnings'), result
 
-        File libsDir = Paths.get(projectDir.root.canonicalPath, 'build', 'libs').toFile()
-        File javadocJar = libsDir.listFiles().first()
-        assertTrue 'Javadoc jar was missing', javadocJar.exists()
-        assertTrue "$javadocJar was not a javadoc jar", javadocJar.name.endsWith('-javadoc.jar')
+        Path libsDir = projectDir.resolve('build').resolve('libs')
+        Path javadocJar = Files.walk(libsDir).find { it -> it.getFileName().toString().endsWith('-javadoc.jar')} as Path
+        assertTrue Files.exists(javadocJar), 'Javadoc jar was missing'
+        assertTrue javadocJar.getFileName().toString().endsWith('-javadoc.jar'), "$javadocJar was not a javadoc jar"
     }
 
     @Test void 'Build Javadoc jar with client dependencies'() {
@@ -38,12 +39,12 @@ class JavadocTest extends IntegrationTest {
         runWithArguments(CreateProjectTask.NAME)
 
         String result = runWithArguments(BuildJavadocJarTask.NAME)
-        assertFalse result, result.contains('warnings')
+        assertFalse result.contains('warnings'), result
 
-        File libsDir = Paths.get(projectDir.root.canonicalPath, 'build', 'libs').toFile()
-        File javadocJar = libsDir.listFiles().first()
-        assertTrue 'Javadoc jar was missing', javadocJar.exists()
-        assertTrue "$javadocJar was not a javadoc jar", javadocJar.name.endsWith('-javadoc.jar')
+        Path libsDir = projectDir.resolve('build').resolve('libs')
+        Path javadocJar = Files.walk(libsDir).find { it -> it.getFileName().toString().endsWith('-javadoc.jar')} as Path
+        assertTrue Files.exists(javadocJar), 'Javadoc jar was missing'
+        assertTrue javadocJar.getFileName().toString().endsWith('-javadoc.jar'), "$javadocJar was not a javadoc jar"
     }
 
     @Test void 'Build directory zip with javadoc and sources'() {
@@ -51,33 +52,35 @@ class JavadocTest extends IntegrationTest {
 
         runWithArguments(CreateDirectoryZipTask.NAME)
 
-        File libsDir = Paths.get(projectDir.root.canonicalPath, 'build', 'libs').toFile()
+        Path libsDir = projectDir.resolve('build').resolve('libs')
 
-        File javadocJar = libsDir.listFiles().find { it.name.endsWith('-javadoc.jar')}
-        assertTrue 'Javadoc was not built', javadocJar.exists()
+        Path javadocJar = Files.walk(libsDir).find { it -> it.getFileName().toString().endsWith('-javadoc.jar')} as Path
+        assertTrue Files.exists(javadocJar), 'Javadoc was not built'
 
-        File sourcesJar = libsDir.listFiles().find { it.name.endsWith('-sources.jar')}
-        assertTrue 'Sources was not built', sourcesJar.exists()
+        Path sourcesJar = Files.walk(libsDir).find { it -> it.getFileName().toString().endsWith('-sources.jar')} as Path
+        assertTrue Files.exists(sourcesJar), 'Sources was not built'
 
-        File distributionDir = Paths.get(projectDir.root.canonicalPath, 'build', 'distributions').toFile()
+        Path distributionDir = projectDir.resolve('build').resolve('distributions')
 
-        File addonZip = distributionDir.listFiles().first()
-        assertTrue 'Distribution zip was not built', addonZip.exists()
+        Path addonZip = Files.walk(distributionDir).find { it -> Files.isRegularFile(it) } as Path
+        assertTrue Files.exists(addonZip), 'Distribution zip was not built'
 
-        ZipFile zip = new ZipFile(addonZip)
-        zip.entries().eachWithIndex { ZipEntry entry, int i ->
-            switch (i) {
-                case 0: assertEquals 'META-INF/', entry.name; break
-                case 1: assertEquals 'META-INF/MANIFEST.MF', entry.name; break
-                case 2: assertEquals 'libs/', entry.name; break
-                case 3: assertEquals "libs/$projectDir.root.name-javadoc.jar".toString(), entry.name; break
-                case 4: assertEquals "libs/$projectDir.root.name-sources.jar".toString(), entry.name; break
-                case 5: assertEquals "libs/${projectDir.root.name}.jar".toString(), entry.name; break
-                case 6: assertEquals 'javadoc/', entry.name; break
-                default:
-                    if(!entry.name.startsWith('javadoc/')) {
-                        fail("Unexpected file $entry.name")
-                    }
+        ZipFile zip = new ZipFile(addonZip.toFile())
+        zip.withCloseable { ZipFile it ->
+            it.entries().eachWithIndex { ZipEntry entry, int i ->
+                switch (i) {
+                    case 0: assertEquals 'META-INF/', entry.name; break
+                    case 1: assertEquals 'META-INF/MANIFEST.MF', entry.name; break
+                    case 2: assertEquals 'libs/', entry.name; break
+                    case 3: assertEquals "libs/${projectDir.getFileName().toString()}-javadoc.jar".toString(), entry.name; break
+                    case 4: assertEquals "libs/${projectDir.getFileName().toString()}-sources.jar".toString(), entry.name; break
+                    case 5: assertEquals "libs/${projectDir.getFileName().toString()}.jar".toString(), entry.name; break
+                    case 6: assertEquals 'javadoc/', entry.name; break
+                    default:
+                        if (!entry.name.startsWith('javadoc/')) {
+                            fail("Unexpected file $entry.name")
+                        }
+                }
             }
         }
     }

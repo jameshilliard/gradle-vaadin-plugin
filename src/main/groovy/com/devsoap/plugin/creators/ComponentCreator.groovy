@@ -20,6 +20,9 @@ import com.devsoap.plugin.Util
 import groovy.transform.Canonical
 import org.apache.commons.lang.StringUtils
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * Create a Vaadin component from a component template
  *
@@ -41,7 +44,7 @@ class ComponentCreator implements Runnable {
     /**
      * Java source directory
      */
-    File javaDir
+    Path javaDir
 
     /**
      * Component name
@@ -65,18 +68,18 @@ class ComponentCreator implements Runnable {
             widgetsetPackage = null
         }
 
-        File widgetsetDir = new File(javaDir, widgetsetPackagePath)
-        File componentDir = new File(new File(widgetsetDir, SERVER_PACKAGE), componentName.toLowerCase())
-        componentDir.mkdirs()
+        Path widgetsetDir = javaDir.resolve(widgetsetPackagePath)
+        Path componentDir = widgetsetDir.resolve(SERVER_PACKAGE).resolve(componentName.toLowerCase())
+        Files.createDirectories(componentDir)
 
-        File widgetDir = new File(new File(widgetsetDir, CLIENT_PACKAGE), componentName.toLowerCase())
-        widgetDir.mkdirs()
+        Path widgetDir = widgetsetDir.resolve(CLIENT_PACKAGE).resolve(componentName.toLowerCase())
+        Files.createDirectories(widgetDir)
 
         Map<String,String> substitutions = [:]
         substitutions['componentServerPackage'] = "${widgetsetPackage ? widgetsetPackage + DOT : StringUtils.EMPTY}" +
-                "$SERVER_PACKAGE.${componentName.toLowerCase()}"
+                "$SERVER_PACKAGE.${componentName.toLowerCase()}" as String
         substitutions['componentClientPackage'] = "${widgetsetPackage ? widgetsetPackage + DOT : StringUtils.EMPTY}" +
-                "$CLIENT_PACKAGE.${componentName.toLowerCase()}"
+                "$CLIENT_PACKAGE.${componentName.toLowerCase()}" as String
         substitutions['componentName'] = componentName
         substitutions['componentStylename'] = componentName.toLowerCase()
 

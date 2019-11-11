@@ -57,6 +57,7 @@ import com.devsoap.plugin.tasks.VersionCheckTask
 import org.gradle.api.Action
 import org.gradle.api.GradleException
 import org.gradle.api.InvalidUserDataException
+import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
@@ -73,6 +74,11 @@ import org.gradle.api.plugins.WarPlugin
 import org.gradle.tooling.UnsupportedVersionException
 import org.gradle.util.VersionNumber
 
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.attribute.FileTime
+import java.time.Instant
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -181,7 +187,9 @@ class GradleVaadinPlugin implements Plugin<Project> {
     private static final String PLUGIN_DEBUG_DIR
     static {
         PLUGIN_PROPERTIES = new Properties()
-        PLUGIN_PROPERTIES.load(GradleVaadinPlugin.getResourceAsStream('/vaadin_plugin.properties'))
+        GradleVaadinPlugin.getResourceAsStream('/vaadin_plugin.properties').withCloseable { InputStream stream ->
+            PLUGIN_PROPERTIES.load(stream)
+        }
         PLUGIN_VERSION = PLUGIN_PROPERTIES.getProperty('version')
         PLUGIN_DEBUG_DIR = PLUGIN_PROPERTIES.getProperty('debugdir')
     }
@@ -212,7 +220,7 @@ class GradleVaadinPlugin implements Plugin<Project> {
 
         Gradle gradle = project.gradle
         VersionNumber version = VersionNumber.parse(gradle.gradleVersion)
-        VersionNumber requiredVersion = new VersionNumber(5, 6, 0, null)
+        VersionNumber requiredVersion = new VersionNumber(6, 0, 0, null)
         if ( version.baseVersion < requiredVersion ) {
             throw new UnsupportedVersionException("Your gradle version ($version) is too old. " +
                     "Plugin requires Gradle $requiredVersion+")
@@ -231,7 +239,7 @@ class GradleVaadinPlugin implements Plugin<Project> {
         }
 
         // Ensure the build dir exists as all external processes will be run inside that directory
-        project.buildDir.mkdirs()
+        Files.createDirectories(project.buildDir.toPath())
 
         // Extensions (must be added before any action)
         project.extensions.create(VaadinPluginExtension.NAME, VaadinPluginExtension, project)
@@ -315,7 +323,7 @@ class GradleVaadinPlugin implements Plugin<Project> {
             }
 
             // Add plugin development repository if specified
-            if ( (debugDir as File)?.exists( )
+            if ( Files.exists(Paths.get(debugDir))
                     && !repositories.findByName(PLUGIN_DEVELOPMENTTIME_REPOSITORY_NAME)) {
                 project.logger.lifecycle("Using development libs found at " + debugDir)
                 repositories.flatDir(name:PLUGIN_DEVELOPMENTTIME_REPOSITORY_NAME, dirs:debugDir)
@@ -442,10 +450,12 @@ class GradleVaadinPlugin implements Plugin<Project> {
                 // Add server dependencies
                 ApplicationServer.get(project, [:]).defineDependecies(projectDependencies, dependencies)
 
-                // Add spring-reloaded for hotswapping
-                Dependency springLoaded = projectDependencies.create(
-                        "org.springframework:springloaded:${Util.pluginProperties.get('spring.loaded.version')}")
-                dependencies.add(springLoaded)
+                // Add spring-reloaded for hotswapping(Incompatible with Java > 8)
+                if (JavaVersion.current() <= JavaVersion.VERSION_1_8) {
+                    Dependency springLoaded = projectDependencies.create(
+                            "org.springframework:springloaded:${Util.pluginProperties.get('spring.loaded.version')}")
+                    dependencies.add(springLoaded)
+                }
 
                 if(configurations.findByName(WarPlugin.PROVIDED_RUNTIME_CONFIGURATION_NAME)){
                     conf.extendsFrom(configurations.findByName(WarPlugin.PROVIDED_RUNTIME_CONFIGURATION_NAME))
@@ -490,7 +500,7 @@ class GradleVaadinPlugin implements Plugin<Project> {
         configurations.create(CONFIGURATION_THEME) { conf ->
             conf.description = 'Libraries needed for SASS theme compilation'
             conf.defaultDependencies { dependencies ->
-                CompileThemeTask themeConf = project.tasks.getByName(CompileThemeTask.NAME)
+                CompileThemeTask themeConf = project.tasks.getByName(CompileThemeTask.NAME) as CompileThemeTask
                 switch (themeConf.compiler) {
                     case 'vaadin':
                             Dependency themeCompiler = projectDependencies.create(
@@ -532,8 +542,8 @@ class GradleVaadinPlugin implements Plugin<Project> {
 
                     // Needed so bootRepackage can include all dependencies in Jar
                     conf.extendsFrom(
-                            project.configurations['compile'],
-                            project.configurations['runtime'],
+                            project.configurations['compileClasspath'],
+                            project.configurations['runtimeClasspath'],
                             project.configurations[CONFIGURATION_PUSH],
                             project.configurations[CONFIGURATION_CLIENT_COMPILE]
                     )

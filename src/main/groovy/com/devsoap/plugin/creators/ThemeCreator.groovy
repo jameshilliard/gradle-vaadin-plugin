@@ -20,6 +20,7 @@ import groovy.transform.Canonical
 import org.gradle.util.VersionNumber
 
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 
 /**
@@ -42,7 +43,7 @@ class ThemeCreator implements Runnable {
     /**
      * The theme directory
      */
-    File themesDirectory
+    Path themesDirectory
 
     /**
      * The vaadin version
@@ -54,8 +55,8 @@ class ThemeCreator implements Runnable {
 
         themeName = themeName ?: project.name
 
-        File themeDir = new File(themesDirectory, themeName)
-        themeDir.mkdirs()
+        Path themeDir = themesDirectory.resolve(themeName)
+        Files.createDirectories(themeDir)
 
         Map substitutions = [:]
         substitutions['themeName'] = themeName
@@ -71,8 +72,10 @@ class ThemeCreator implements Runnable {
         TemplateUtil.writeTemplate('MyTheme.scss', themeDir, themeScssFile, substitutions)
 
         URL favicon = ThemeCreator.classLoader.getResource(FAVICON_FILENAME)
-        File faviconFile = new File(themeDir, FAVICON_FILENAME)
+        Path faviconFile = themeDir.resolve(FAVICON_FILENAME)
 
-        Files.copy(favicon.openStream(), faviconFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        favicon.openStream().withCloseable { InputStream stream ->
+            Files.copy(stream, faviconFile, StandardCopyOption.REPLACE_EXISTING)
+        }
     }
 }

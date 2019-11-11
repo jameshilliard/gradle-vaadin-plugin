@@ -21,6 +21,9 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.TaskAction
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * Updates the addon.scss file listing with addons styles found in the classpath
  *
@@ -44,18 +47,18 @@ class UpdateAddonStylesTask extends DefaultTask {
         project.afterEvaluate {
 
             // Themes dirs
-            def themesDir = Util.getThemesDirectory(project)
-            if ( themesDir && themesDir.exists() ) {
+            Path themesDir = Util.getThemesDirectory(project)
+            if ( themesDir && Files.exists(themesDir) ) {
                 themesDir.eachDir {
                     inputs.dir it
-                    outputs.file new File(it, ADDONS_SCSS_FILE)
+                    outputs.file it.resolve(ADDONS_SCSS_FILE)
                 }
             }
 
             // Add classpath jar
             if ( project.vaadin.useClassPathJar ) {
-                BuildClassPathJar pathJarTask = project.getTasksByName(BuildClassPathJar.NAME, true).first()
-                inputs.file(new File(pathJarTask.destinationDirectory.get().asFile, pathJarTask.archiveFileName.get()))
+                BuildClassPathJar pathJarTask = project.getTasksByName(BuildClassPathJar.NAME, true).first() as BuildClassPathJar
+                inputs.file(pathJarTask.getArchiveFile().get())
             }
         }
     }
@@ -66,11 +69,11 @@ class UpdateAddonStylesTask extends DefaultTask {
     @TaskAction
     void run() {
 
-        File themesDir = Util.getThemesDirectory(project)
-        themesDir.mkdirs()
+        Path themesDir = Util.getThemesDirectory(project)
+        Files.createDirectories(themesDir)
         themesDir.eachDir {
 
-            File addonsScss = new File(it, ADDONS_SCSS_FILE)
+            Path addonsScss = it.resolve(ADDONS_SCSS_FILE)
 
             project.logger.info("Updating $addonsScss")
 
@@ -90,7 +93,7 @@ class UpdateAddonStylesTask extends DefaultTask {
             importer.add('-cp')
             importer.add(classpath.asPath)
             importer.add('com.vaadin.server.themeutils.SASSAddonImportFileCreator')
-            importer.add(it.canonicalPath)
+            importer.add(it.toAbsolutePath().toString())
 
             Process process = importer.execute([], project.buildDir)
 

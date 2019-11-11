@@ -15,19 +15,26 @@
  */
 package com.devsoap.plugin.tests
 
+import org.junit.jupiter.api.BeforeEach
+
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * Base for tests tests which has modules with vaadin projects
  */
 class MultiProjectIntegrationTest extends IntegrationTest {
 
     @Override
+    @BeforeEach
     void setup() {
         startTime = System.currentTimeMillis()
-        println "Running test in $projectDir.root"
+        println "Running test in $projectDir"
 
         // Create root build file without vaadin plugin
-        buildFile = makeBuildFile(projectDir.root, false)
-        settingsFile = projectDir.newFile("settings.gradle")
+        buildFile = makeBuildFile(projectDir, false)
+        settingsFile = projectDir.resolve("settings.gradle")
+        Files.createFile(settingsFile)
 
         def escapedDir = getPluginDir()
 
@@ -47,9 +54,10 @@ class MultiProjectIntegrationTest extends IntegrationTest {
         """
     }
 
-    protected File makeProject(String name) {
-        File projectDir = projectDir.newFolder(name)
+    protected Path makeProject(String name) {
+        Path newProjectDir = projectDir.resolve(name)
+        Files.createDirectories(newProjectDir)
         settingsFile << "include ':$name'\n"
-        projectDir
+        newProjectDir
     }
 }

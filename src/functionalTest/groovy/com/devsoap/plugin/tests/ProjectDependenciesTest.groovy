@@ -1,10 +1,12 @@
 package com.devsoap.plugin.tests
 
 import com.devsoap.plugin.tasks.CreateProjectTask
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
-import static org.junit.Assert.assertFalse
-import static org.junit.Assert.assertTrue
+import java.nio.file.Path
+
+import static org.junit.jupiter.api.Assertions.assertFalse
+import static org.junit.jupiter.api.Assertions.assertTrue
 
 /**
  * Tests the injected dependencies
@@ -12,7 +14,7 @@ import static org.junit.Assert.assertTrue
 class ProjectDependenciesTest extends IntegrationTest {
 
     @Override
-    protected void applyThirdPartyPlugins(File buildFile) {
+    protected void applyThirdPartyPlugins(Path buildFile) {
         super.applyThirdPartyPlugins(buildFile)
 
         buildFile << """
@@ -36,9 +38,9 @@ class ProjectDependenciesTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('testProperties')
-        assertTrue result, result.contains( 'Has Vaadin property true')
-        assertTrue result, result.contains( 'Has Vaadin extension true')
-        assertTrue result, result.contains( 'Has Vaadin type true')
+        assertTrue result.contains( 'Has Vaadin property true'), result
+        assertTrue result.contains( 'Has Vaadin extension true'), result
+        assertTrue result.contains( 'Has Vaadin type true'), result
     }
 
     @Test void 'Project has Vaadin configurations'() {
@@ -60,13 +62,13 @@ class ProjectDependenciesTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('testConfigurations')
-        assertTrue result, result.contains( 'Server configuration true')
-        assertTrue result, result.contains( 'Client configuration true')
-        assertTrue result, result.contains( 'Javadoc configuration true')
+        assertTrue result.contains( 'Server configuration true'), result
+        assertTrue result.contains( 'Client configuration true'), result
+        assertTrue result.contains( 'Javadoc configuration true'), result
 
-        assertTrue result, result.contains( 'Testbench configuration false')
-        assertTrue result, result.contains( 'Push configuration false')
-        assertTrue result, result.contains( 'Groovy configuration false')
+        assertTrue result.contains( 'Testbench configuration false'), result
+        assertTrue result.contains( 'Push configuration false'), result
+        assertTrue result.contains( 'Groovy configuration false'), result
     }
 
     @Test void 'Project has Vaadin repositories'() {
@@ -89,7 +91,7 @@ class ProjectDependenciesTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('testRepositories')
-        assertFalse result, result.contains( 'Repository missing')
+        assertFalse result.contains( 'Repository missing'), result
     }
 
     @Test void 'Project has pre-compiled widgetset'() {
@@ -109,8 +111,8 @@ class ProjectDependenciesTest extends IntegrationTest {
          """.stripIndent()
 
         def result = runWithArguments('hasWidgetset')
-        assertTrue result, result.contains( 'Has client dependency true')
-        assertTrue result, result.contains( 'Has client-compiled dependency true')
+        assertTrue result.contains( 'Has client dependency true'), result
+        assertTrue result.contains( 'Has client-compiled dependency true'), result
     }
 
     @Test void 'Client dependencies added when widgetset present'() {
@@ -131,7 +133,7 @@ class ProjectDependenciesTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('testClientDependencies')
-        assertTrue result, result.contains( 'Has client dependency true')
+        assertTrue result.contains( 'Has client dependency true'), result
     }
 
     @Test void 'Client dependencies added when widgetset is automatically detected'() {
@@ -149,14 +151,14 @@ class ProjectDependenciesTest extends IntegrationTest {
         runWithArguments(CreateProjectTask.NAME, '--widgetset=com.example.MyWidgetset')
 
         def result = runWithArguments('testClientDependencies')
-        assertTrue result, result.contains( 'Has client dependency true')
+        assertTrue result.contains( 'Has client dependency true'), result
     }
 
     @Test void 'Vaadin version is resolved'() {
 
         buildFile << """
             vaadin {
-                version '7.3.0'               
+                version '8.12.2'               
             }
             
             vaadinCompile {
@@ -184,8 +186,8 @@ class ProjectDependenciesTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('verifyVaadinVersion')
-        assertTrue result, result.contains( 'Vaadin Server 7.3.0')
-        assertTrue result, result.contains( 'Vaadin Client 7.3.0')
+        assertTrue result.contains( 'Vaadin Server 8.12.2'), result
+        assertTrue result.contains( 'Vaadin Client 8.12.2'), result
     }
 
     @Test void 'Project has Testbench dependencies'() {
@@ -207,24 +209,24 @@ class ProjectDependenciesTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('verifyTestbenchPresent')
-        assertTrue result, result.contains( 'Testbench configuration true')
-        assertTrue result, result.contains( 'Testbench artifacts true')
+        assertTrue result.contains( 'Testbench configuration true'), result
+        assertTrue result.contains( 'Testbench artifacts true'), result
     }
 
     @Test void 'Vaadin version blacklist'() {
 
         buildFile << """
              dependencies {
-                compile 'com.vaadin:vaadin-sass-compiler:+'
-                compile 'com.vaadin:vaadin-client-compiler-deps:+'
-                compile 'com.vaadin:vaadin-cdi:+'
-                compile 'com.vaadin:vaadin-spring:+'
-                compile 'com.vaadin:vaadin-spring-boot:+'
+                implementation 'com.vaadin:vaadin-sass-compiler:+'
+                implementation 'com.vaadin:vaadin-client-compiler-deps:+'
+                implementation 'com.vaadin:vaadin-cdi:+'
+                implementation 'com.vaadin:vaadin-spring:+'
+                implementation 'com.vaadin:vaadin-spring-boot:+'
             }
 
             task evaluateVersionBlacklist {
                 doLast {
-                    project.configurations.compile.dependencies.each {
+                    project.configurations.compileClasspath.dependencies.each {
                         if ( it.version.equals(project.vaadin.version) ) {
                             println 'Version blacklist failed for ' + it
                         }
@@ -234,7 +236,7 @@ class ProjectDependenciesTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('evaluateVersionBlacklist')
-        assertFalse result, result.contains( 'Version blacklist failed for')
+        assertFalse result.contains( 'Version blacklist failed for'), result
     }
 
     @Test void 'Maven Central and Local are included'() {
@@ -254,15 +256,15 @@ class ProjectDependenciesTest extends IntegrationTest {
         """.stripIndent()
 
         def result = runWithArguments('testMavenCentralLocal')
-        assertTrue result, result.contains( 'Has Maven Central')
-        assertTrue result, result.contains( 'Has Maven Local')
+        assertTrue result.contains( 'Has Maven Central'), result
+        assertTrue result.contains( 'Has Maven Local'), result
     }
 
     @Test void 'Dependency without version'() {
         buildFile << """
             String lib = 'libs/qrcode-2.1.jar'
             dependencies {
-                 compile files(lib)
+                 implementation files(lib)
             }
             task downloadFile(type: de.undercouch.gradle.tasks.download.Download) {
                 src 'http://vaadin.com/nexus/content/repositories/vaadin-addons/' +

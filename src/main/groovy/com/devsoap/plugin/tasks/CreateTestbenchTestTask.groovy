@@ -20,8 +20,12 @@ import com.devsoap.plugin.TemplateUtil
 import com.devsoap.plugin.Util
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.options.Option
 import org.gradle.api.tasks.TaskAction
+
+import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * Creates a Vaadin Testbench test
@@ -35,12 +39,14 @@ class CreateTestbenchTestTask extends DefaultTask {
     /**
      * The test class name
      */
+    @Input
     @Option(option = 'name', description = 'Test name')
     String testName = 'MyTest'
 
     /**
      * The test package
      */
+    @Input
     @Option(option = 'package', description = 'Test package')
     String testPackage = 'com.example.tests'
 
@@ -61,10 +67,10 @@ class CreateTestbenchTestTask extends DefaultTask {
     }
 
     private makeTestClass() {
-        File javaDir = Util.getMainTestSourceSet(project).srcDirs.first()
-        RunTask runTask = project.tasks.getByName(RunTask.NAME)
-        File packageDir = new File(javaDir, TemplateUtil.convertFQNToFilePath(testPackage))
-        packageDir.mkdirs()
+        Path javaDir = Util.getMainTestSourceSet(project).srcDirs.first().toPath()
+        RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
+        Path packageDir = javaDir.resolve(TemplateUtil.convertFQNToFilePath(testPackage))
+        Files.createDirectories(packageDir)
 
         def substitutions = [:]
         substitutions['packageName'] = testPackage

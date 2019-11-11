@@ -26,7 +26,7 @@ plugins {
     id 'groovy'
     id 'maven-publish'
     id 'idea'
-    id 'codenarc'
+    //id 'codenarc'
     id 'com.gradle.plugin-publish' version '0.10.1'
     id 'checkstyle'
 }
@@ -62,7 +62,7 @@ sourceSets {
         resources {
             srcDir file('src/functionalTest/resources')
         }
-        compileClasspath += sourceSets.main.output + configurations.testRuntime
+        compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
         runtimeClasspath += output + compileClasspath
     }
 }
@@ -84,15 +84,16 @@ configurations {
 dependencies {
     implementation gradleApi()
     implementation localGroovy()
+    //implementation 'org.codehaus.groovy:groovy-all:3.0.7'
 
     // Jetty application server
-    implementation "org.eclipse.jetty.aggregate:jetty-all:${project.property('jetty.version')}"
+    implementation "org.eclipse.jetty:jetty-server:${project.property('jetty.version')}"
     implementation "org.eclipse.jetty:jetty-annotations:${project.property('jetty.version')}"
     implementation "org.eclipse.jetty:jetty-plus:${project.property('jetty.version')}"
     implementation "org.eclipse.jetty:jetty-deploy:${project.property('jetty.version')}"
 
     //Payara application server
-    implementation "fish.payara.extras:payara-embedded-web:${project.property('payara.version')}"
+    implementation "org.glassfish.main.common:simple-glassfish-api:${project.property('payara.version')}"
 
     // For GET requests
     implementation 'org.codehaus.groovy.modules.http-builder:http-builder:0.7.1'
@@ -103,10 +104,10 @@ dependencies {
     deploy 'org.apache.maven.wagon:wagon-ssh:2.2'
 
     testImplementation gradleTestKit()
-    testImplementation 'junit:junit:4.13-beta-3'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.1'
 
     // ProxyTest needs its own special configuration to avoid conflicts
-    proxyTest ('org.mock-server:mockserver-netty:3.10.4') {
+    proxyTest testImplementation('org.mock-server:mockserver-netty:5.11.2') {
         exclude group:'ch.qos.logback'
     }
     project.configurations.proxyTest.exclude group: 'fish.payara.extras'
@@ -129,7 +130,7 @@ idea {
  * Compiles the tests
  */
 compileFunctionalTestGroovy {
-    classpath += configurations.proxyTest
+    classpath += configurations.proxyTest + configurations.testRuntimeClasspath
 }
 
 /**
@@ -154,6 +155,7 @@ processResources {
             ])
         }
     }
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 
@@ -221,11 +223,11 @@ task uncategorizedTests(type:Test, dependsOn:['test','jar']) {
         exceptionFormat "full"
         showStandardStreams = true
     }
-    useJUnit {
-        excludeCategories 'com.devsoap.plugin.categories.WidgetsetCompile'
-        excludeCategories 'com.devsoap.plugin.categories.ThemeCompile'
-        excludeCategories 'com.devsoap.plugin.categories.WidgetsetAndThemeCompile'
-        excludeCategories 'com.devsoap.plugin.categories.RunProject'
+    useJUnitPlatform {
+        excludeTags 'WidgetsetCompile'
+        excludeTags 'ThemeCompile'
+        excludeTags 'WidgetsetAndThemeCompile'
+        excludeTags 'RunProject'
     }
     exclude  '**/tests/*ProxyTest*'
     systemProperty 'integrationTestProjectVersion', version
@@ -239,9 +241,9 @@ task widgetsetCompileTests(type:Test, dependsOn:['test','jar']) {
         exceptionFormat "full"
         showStandardStreams = true
     }
-    useJUnit {
-        includeCategories 'com.devsoap.plugin.categories.WidgetsetCompile'
-        excludeCategories 'com.devsoap.plugin.categories.ThemeCompile'
+    useJUnitPlatform {
+        includeTags 'WidgetsetCompile'
+        excludeTags 'ThemeCompile'
     }
     systemProperty 'integrationTestProjectVersion', version
     maxParallelForks = Runtime.runtime.availableProcessors() > 1 ? Runtime.runtime.availableProcessors() - 1 : 1
@@ -254,9 +256,9 @@ task themeCompileTests(type:Test, dependsOn:['test','jar']) {
         exceptionFormat "full"
         showStandardStreams = true
     }
-    useJUnit {
-        excludeCategories 'com.devsoap.plugin.categories.WidgetsetCompile'
-        includeCategories 'com.devsoap.plugin.categories.ThemeCompile'
+    useJUnitPlatform {
+        excludeTags 'WidgetsetCompile'
+        includeTags 'ThemeCompile'
     }
     systemProperty 'integrationTestProjectVersion', version
     maxParallelForks = Runtime.runtime.availableProcessors() > 1 ? Runtime.runtime.availableProcessors() - 1 : 1
@@ -269,8 +271,8 @@ task fullCompileTests(type:Test, dependsOn:['test','jar']) {
         exceptionFormat "full"
         showStandardStreams = true
     }
-    useJUnit {
-        includeCategories 'com.devsoap.plugin.categories.WidgetsetAndThemeCompile'
+    useJUnitPlatform {
+        includeTags 'WidgetsetAndThemeCompile'
     }
     systemProperty 'integrationTestProjectVersion', version
     maxParallelForks = Runtime.runtime.availableProcessors() > 1 ? Runtime.runtime.availableProcessors() - 1 : 1
@@ -283,8 +285,8 @@ task runProjectTests(type:Test, dependsOn:['test','jar']) {
         exceptionFormat "full"
         showStandardStreams = true
     }
-    useJUnit {
-        includeCategories 'com.devsoap.plugin.categories.RunProject'
+    useJUnitPlatform {
+        includeTags 'RunProject'
     }
     systemProperty 'integrationTestProjectVersion', version
     maxParallelForks = Runtime.runtime.availableProcessors() > 1 ? Runtime.runtime.availableProcessors() - 1 : 1
@@ -300,6 +302,7 @@ task proxyTest(type:Test, dependsOn: ['test','jar']) {
         exceptionFormat "full"
         showStandardStreams = true
     }
+    useJUnitPlatform()
     include  '**/tests/*ProxyTest*'
     systemProperty 'integrationTestProjectVersion', version
     testClassesDirs = sourceSets.functionalTest.output.classesDirs
@@ -314,6 +317,7 @@ task allTests(type:Test, dependsOn:['test','jar']) {
         exceptionFormat "full"
         showStandardStreams = true
     }
+    useJUnitPlatform()
     systemProperty 'integrationTestProjectVersion', version
     testClassesDirs = sourceSets.functionalTest.output.classesDirs
     classpath += sourceSets.functionalTest.runtimeClasspath
@@ -336,17 +340,18 @@ if(!ext.testCategory) {
  * Quality
  *
  ***********************************************************************************************************************/
-
+/*
 codenarc{
-    toolVersion = '1.1'
+    toolVersion = '2.0.0'
     configFile = rootProject.file('config/codenarc/ruleset.groovy')
     maxPriority1Violations = 0
     maxPriority2Violations = 0
-    maxPriority3Violations = 500
+    maxPriority3Violations = 1000
     codenarcTest {
         configFile = rootProject.file('config/codenarc/ruleset-functionalTest.groovy')
     }
 }
+ */
 
 checkstyle {
     configFile rootProject.file('config/checkstyle/checkstyle.xml')
@@ -404,7 +409,7 @@ pluginBundle {
  *
  **********************************************************************************************************************/
 wrapper {
-    gradleVersion = '5.6'
+    gradleVersion = '6.8.3'
     distributionUrl = distributionUrl.replace('bin', 'all') // Download sources
 }
 

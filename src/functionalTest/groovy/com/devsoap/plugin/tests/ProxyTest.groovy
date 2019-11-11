@@ -3,38 +3,46 @@ package com.devsoap.plugin.tests
 import com.devsoap.plugin.tasks.CompileWidgetsetTask
 import com.devsoap.plugin.tasks.CreateProjectTask
 import groovy.json.JsonSlurper
-import org.junit.After
-import org.junit.Before
-import org.junit.Test
-import org.mockserver.integration.ClientAndProxy
-import java.nio.file.Paths
-import static org.junit.Assert.assertTrue
-import static org.junit.Assert.assertEquals
-import static org.mockserver.integration.ClientAndProxy.startClientAndProxy
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.mockserver.client.MockServerClient
+import org.mockserver.integration.ClientAndServer
+import org.mockserver.model.HttpRequest
+import org.mockserver.model.RequestDefinition
+
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.concurrent.Future
+
+import static org.junit.jupiter.api.Assertions.assertTrue
+import static org.junit.jupiter.api.Assertions.assertEquals
+import static org.mockserver.integration.ClientAndServer.startClientAndServer
 
 /**
  * Created by john on 1/19/17.
  */
 class ProxyTest extends IntegrationTest {
 
-    ClientAndProxy proxy
+    ClientAndServer proxy
 
-    @Before
+    @BeforeEach
     void startProxy() {
-        proxy = startClientAndProxy(1090)
+        proxy = startClientAndServer(getPort())
     }
 
-    @After
+    @AfterEach
     void stopProxy() {
-        proxy.stop()
-        proxy = null
+        Future<MockServerClient> clientFut = proxy.stop(false)
+        MockServerClient client = clientFut.get()
+        assertTrue client.hasStopped(), 'Proxy is still running after stop.'
     }
 
     @Test
     void 'Test widgetset CDN behind proxy'() {
         buildFile << """
             dependencies {
-                compile 'org.vaadin.addons:qrcode:+'
+                implementation 'org.vaadin.addons:qrcode:+'
             }
 
             vaadinCompile {
@@ -51,38 +59,35 @@ class ProxyTest extends IntegrationTest {
         runWithArguments(CreateProjectTask.NAME)
 
         String result = runWithArguments('--info', CompileWidgetsetTask.NAME)
-        assertTrue result, result.contains('Querying widgetset for')
-        assertTrue result, result.contains('Widgetset is available, downloading...')
-        assertTrue result, result.contains('Extracting widgetset')
-        assertTrue result, result.contains('Generating AppWidgetset')
+        assertTrue result.contains('Querying widgetset for'), result
+        assertTrue result.contains('Widgetset is available, downloading...'), result
+        assertTrue result.contains('Extracting widgetset'), result
+        assertTrue result.contains('Generating AppWidgetset'), result
 
-        File appWidgetset = Paths.get(projectDir.root.canonicalPath,
-                'src', 'main', 'java', 'AppWidgetset.java').toFile()
-        assertTrue 'AppWidgetset.java was not created', appWidgetset.exists()
+        Path appWidgetset = projectDir.resolve('src').resolve('main')
+                .resolve('java').resolve('AppWidgetset.java')
+        assertTrue Files.exists(appWidgetset), 'AppWidgetset.java was not created'
 
-        File widgetsetFolder = Paths.get(projectDir.root.canonicalPath,
-                'src', 'main', 'webapp', 'VAADIN', 'widgetsets').toFile()
-        assertTrue 'Widgetsets folder did not exist', widgetsetFolder.exists()
-        assertTrue 'Widgetsets folder did not contain widgetset',
-                widgetsetFolder.listFiles().size() == 1
+        Path widgetsetFolder = projectDir.resolve('src').resolve('main')
+                .resolve('webapp').resolve('VAADIN').resolve('widgetsets')
+        assertTrue Files.exists(widgetsetFolder), 'Widgetsets folder did not exist'
+        assertTrue Files.list(widgetsetFolder).withCloseable { it.count() } == 1,
+                'Widgetsets folder did not contain widgetset'
 
         Map request = getRequest('/api/compiler/download')
-        assertTrue 'Vaadin version was not right',  request.vaadinVersion.startsWith('8')
-        assertEquals 'Compile style not correct', request.compileStyle, 'OBF'
+        assertTrue request.vaadinVersion.startsWith('8'), 'Vaadin version was not right'
+        assertEquals request.compileStyle, 'OBF', 'Compile style not correct'
 
         Map qrCodeAddon = request.addons[0]
-        assertEquals qrCodeAddon.groupId, 'org.vaadin.addons'
-        assertEquals qrCodeAddon.artifactId, 'qrcode'
-        assertEquals qrCodeAddon.version, '2.1'
+        assertEquals 'org.vaadin.addons', qrCodeAddon.groupId
+        assertEquals 'qrcode', qrCodeAddon.artifactId
+        assertEquals '2.1', qrCodeAddon.version
     }
 
     private Map getRequest(String path) {
-        (Map) new JsonSlurper().parseText(parseRequests()
-                .find { req -> req.path == path }.body)
-    }
-
-    private List<Map> parseRequests() {
-        String json = proxy.retrieveAsJSON(null)
-        (List<Map>) new JsonSlurper().parseText(json)
+        RequestDefinition[] json = proxy.retrieveRecordedRequests(HttpRequest.request(path))
+        HttpRequest request = json[0] as HttpRequest
+        Map jsonArray = new JsonSlurper().parseText(request.bodyAsJsonOrXmlString) as Map
+        jsonArray
     }
 }

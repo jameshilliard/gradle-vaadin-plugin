@@ -22,6 +22,9 @@ import org.gradle.api.file.FileTree
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.TaskAction
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * Compresses the theme styles with GZip
  *
@@ -39,18 +42,19 @@ class CompressCssTask extends DefaultTask {
     CompressCssTask() {
         description = 'Compresses the theme with GZip'
         onlyIf = {
-            CompileThemeTask themeConf = project.tasks.getByName(CompileThemeTask.NAME)
+            CompileThemeTask themeConf = project.tasks.getByName(CompileThemeTask.NAME) as CompileThemeTask
             themeConf.compress
         }
         dependsOn(CompileThemeTask.NAME)
         project.afterEvaluate {
-            File themesDir = Util.getThemesDirectory(project)
-            FileTree themes = project.fileTree(dir:themesDir,
+            Path themesDir = Util.getThemesDirectory(project)
+            FileTree themes = project.fileTree(dir:themesDir.toFile(),
                     include:CompileThemeTask.STYLES_SCSS_PATTERN)
-            themes.each { File theme ->
-                File dir = new File(theme.parent)
-                inputs.file new File(dir, CompileThemeTask.STYLES_CSS)
-                outputs.file new File(dir, 'styles.css.gz')
+            themes.each { File themeFile ->
+                Path theme = themeFile.toPath()
+                Path dir = theme.parent
+                inputs.file dir.resolve(CompileThemeTask.STYLES_CSS).toFile()
+                outputs.file dir.resolve('styles.css.gz').toFile()
             }
         }
     }
@@ -72,21 +76,22 @@ class CompressCssTask extends DefaultTask {
      *      are we re-compressing on-the-fly
      */
     static compress(Project project, boolean isRecompress=false) {
-        File themesDir = Util.getThemesDirectory(project)
+        Path themesDir = Util.getThemesDirectory(project)
         FileTree themes = project.fileTree(dir: themesDir, include: CompileThemeTask.STYLES_SCSS_PATTERN)
-        themes.each { File theme ->
-            File dir = new File(theme.parent)
-            File stylesCss = new File(dir, CompileThemeTask.STYLES_CSS)
-            if (stylesCss.exists()) {
+        themes.each { File themeFiles ->
+            Path theme = themeFiles.toPath()
+            Path dir = theme.parent
+            Path stylesCss = dir.resolve(CompileThemeTask.STYLES_CSS)
+            if (Files.exists(stylesCss)) {
                 if(isRecompress) {
-                    project.logger.lifecycle("Recompressing $stylesCss.canonicalPath...")
+                    project.logger.lifecycle("Recompressing ${stylesCss.toAbsolutePath().toString()}...")
                 } else {
-                    project.logger.info("Compressing $stylesCss.canonicalPath...")
+                    project.logger.info("Compressing ${stylesCss.toAbsolutePath().toString()}...")
                 }
 
                 long start = System.currentTimeMillis()
 
-                project.ant.gzip(src: stylesCss.canonicalPath, destfile: "${stylesCss.canonicalPath}.gz")
+                project.ant.gzip(src: stylesCss.toAbsolutePath().toString(), destfile: "${stylesCss.toAbsolutePath().toString()}.gz")
 
                 long time = (System.currentTimeMillis()-start)/1000
                 if ( isRecompress ) {

@@ -2,29 +2,35 @@ package com.devsoap.plugin.tests
 
 import com.devsoap.plugin.extensions.VaadinPluginExtension
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * Base class for testing building projects with Kotlin and Kotlin DSL
  */
 class KotlinIntegrationTest extends IntegrationTest {
 
-    final String kotlinVersion
+    String kotlinVersion
 
-    KotlinIntegrationTest(String kotlinVersion) {
+    KotlinIntegrationTest() { }
+
+    void setup(String kotlinVersion) {
         this.kotlinVersion = kotlinVersion
     }
 
     @Override
     void setup() {
         startTime = System.currentTimeMillis()
-        println "Running test in $projectDir.root"
-        buildFile = makeBuildFile(projectDir.root)
-        settingsFile = projectDir.newFile("settings.gradle")
+        println "Running test in $projectDir"
+        buildFile = makeBuildFile(projectDir)
+        settingsFile = projectDir.resolve("settings.gradle")
+        Files.createFile(settingsFile)
     }
 
     @Override
-    protected File makeBuildFile(File projectDir, boolean applyPluginToFile=true) {
-        File buildFile = new File(projectDir, 'build.gradle.kts')
-        buildFile.createNewFile()
+    protected Path makeBuildFile(Path projectDir, boolean applyPluginToFile=true) {
+        Path buildFile = projectDir.resolve('build.gradle.kts')
+        Files.createFile(buildFile)
 
         // Imports
         applyImports(buildFile)
@@ -56,7 +62,7 @@ class KotlinIntegrationTest extends IntegrationTest {
     }
 
     @Override
-    protected void applyRepositories(File buildFile) {
+    protected void applyRepositories(Path buildFile) {
         String escapedDir = getPluginDir()
         buildFile << """
             repositories {
@@ -68,7 +74,7 @@ class KotlinIntegrationTest extends IntegrationTest {
     }
 
     @Override
-    protected void applyPlugin(File buildFile) {
+    protected void applyPlugin(Path buildFile) {
        buildFile << """
         apply {
             plugin("com.devsoap.plugin.vaadin")
@@ -77,7 +83,7 @@ class KotlinIntegrationTest extends IntegrationTest {
     }
 
     @Override
-    protected void applyBuildScriptRepositories(File buildFile) {
+    protected void applyBuildScriptRepositories(Path buildFile) {
         String escapedDir = getPluginDir()
         buildFile << "mavenLocal()\n"
         buildFile << "mavenCentral()\n"
@@ -89,8 +95,8 @@ class KotlinIntegrationTest extends IntegrationTest {
     }
 
     @Override
-    protected void applyThirdPartyPlugins(File buildFile) {
-        if(!buildFile || !buildFile.exists()){
+    protected void applyThirdPartyPlugins(Path buildFile) {
+        if(!buildFile || Files.notExists(buildFile)){
             throw new IllegalArgumentException("$buildFile does not exist or is null")
         }
 
@@ -100,13 +106,13 @@ class KotlinIntegrationTest extends IntegrationTest {
            }
 
            dependencies {
-                compile("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+                implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
            }
         """.stripIndent()
     }
 
     @Override
-    protected void applyBuildScriptClasspathDependencies(File buildFile) {
+    protected void applyBuildScriptClasspathDependencies(Path buildFile) {
         def projectVersion = System.getProperty('integrationTestProjectVersion')
         buildFile << """
              classpath("org.codehaus.groovy.modules.http-builder:http-builder:0.7.1")
@@ -115,7 +121,7 @@ class KotlinIntegrationTest extends IntegrationTest {
         """.stripIndent()
     }
 
-    protected void applyImports(File buildFile) {
+    protected void applyImports(Path buildFile) {
         buildFile << """
             import $VaadinPluginExtension.canonicalName
         """.stripIndent()

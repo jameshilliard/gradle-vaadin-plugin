@@ -1,10 +1,11 @@
 package com.devsoap.plugin.tests
 
 import com.devsoap.plugin.tasks.CreateAddonThemeTask
-import org.junit.Assert
-import org.junit.Test
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Test
 
-import java.nio.file.Paths
+import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * Created by john on 19.1.2016.
@@ -23,13 +24,14 @@ class CreateAddonThemeTest extends IntegrationTest {
 
     private void assertThemeInDirectory(String themeName) {
 
-        def addonsDir = Paths.get(projectDir.root.canonicalPath, 'src', 'main', 'resources', 'VAADIN','addons').toFile()
-        Assert.assertTrue addonsDir.exists()
+        Path addonsDir = projectDir.resolve('src').resolve('main')
+                .resolve('resources').resolve('VAADIN').resolve('addons')
+        Assertions.assertTrue Files.exists(addonsDir)
 
-        def themeDir = Paths.get(addonsDir.canonicalPath, themeName).toFile()
-        Assert.assertTrue themeDir.exists()
+        Path themeDir = addonsDir.resolve(themeName)
+        Assertions.assertTrue Files.exists(themeDir)
 
-        def theme = Paths.get(themeDir.canonicalPath, themeName+".scss").toFile()
-        Assert.assertTrue theme.exists()
+        Path theme = themeDir.resolve(themeName+".scss")
+        Assertions.assertTrue Files.exists(theme)
     }
 }

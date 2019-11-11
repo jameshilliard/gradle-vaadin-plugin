@@ -23,6 +23,7 @@ import com.devsoap.plugin.tasks.CompileThemeTask
 import com.devsoap.plugin.tasks.CompressCssTask
 import com.devsoap.plugin.tasks.RunTask
 import org.gradle.api.GradleException
+import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.artifacts.DependencySet
 import org.gradle.api.artifacts.dsl.DependencyHandler
@@ -31,6 +32,8 @@ import org.gradle.api.plugins.JavaPluginConvention
 import org.gradle.api.plugins.WarPluginConvention
 import org.gradle.api.tasks.SourceSet
 
+import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.WatchEvent
 import java.nio.file.WatchKey
 import java.util.concurrent.Executors
@@ -62,7 +65,7 @@ abstract class ApplicationServer {
      *      returns the application server
      */
     static ApplicationServer get(Project project, Map browserParameters = [:]) {
-        RunTask runTask = project.tasks.getByName(RunTask.NAME)
+        RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
         switch(runTask.server) {
             case PayaraApplicationServer.NAME:
                 return new PayaraApplicationServer(project, browserParameters)
@@ -131,8 +134,8 @@ abstract class ApplicationServer {
         FileCollection cp
         VaadinPluginExtension vaadin = project.extensions.getByType(VaadinPluginExtension)
         if ( vaadin.useClassPathJar ) {
-            BuildClassPathJar pathJarTask = project.getTasksByName(BuildClassPathJar.NAME, true).first()
-            cp = project.files(pathJarTask.archivePath)
+            BuildClassPathJar pathJarTask = project.getTasksByName(BuildClassPathJar.NAME, true).first() as BuildClassPathJar
+            cp = project.files(pathJarTask.archiveFile)
         } else {
             cp = (Util.getWarClasspath(project) + project.configurations[GradleVaadinPlugin.CONFIGURATION_RUN_SERVER] )
                     .filter { it.file && it.canonicalFile.name.endsWith(JAR_FILE_POSTFIX)}
@@ -148,8 +151,8 @@ abstract class ApplicationServer {
      * @return
      *      the classpath file
      */
-    File makeClassPathFile(File buildDir) {
-        File buildClasspath = new File(buildDir, 'classpath.txt')
+    Path makeClassPathFile(Path buildDir) {
+        Path buildClasspath = buildDir.resolve('classpath.txt')
         buildClasspath.text = Util.getWarClasspath(project)
                 .filter { it.file && it.canonicalFile.name.endsWith(JAR_FILE_POSTFIX)}
                 .join(";")
@@ -165,7 +168,7 @@ abstract class ApplicationServer {
      */
     void configureProcess(List<String> parameters) {
 
-        RunTask runTask = project.tasks.getByName(RunTask.NAME)
+        RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
 
         // Debug
         if ( runTask.debug ) {
@@ -173,18 +176,20 @@ abstract class ApplicationServer {
             parameters.add("-Xrunjdwp:transport=dt_socket,address=${runTask.debugPort},server=y,suspend=n")
         }
 
-        // Spring (re-)loaded
-        File springLoaded = project.configurations[GradleVaadinPlugin.CONFIGURATION_RUN_SERVER]
-                .resolvedConfiguration.files.find {it.name.startsWith('springloaded')}
-        if(springLoaded) {
-            project.logger.info("Using Spring Loaded found from ${springLoaded}")
-            parameters.add("-javaagent:${springLoaded.canonicalPath}")
-            parameters.add('-noverify')
-        } else {
-            project.logger.warn(
-                "Spring Loaded jar not found in $GradleVaadinPlugin.CONFIGURATION_RUN_SERVER configuration. " +
-                "Dynamic reloading disabled."
-            )
+        // Spring (re-)loaded(Incompatible with Java > 8)
+        if (JavaVersion.current() <= JavaVersion.VERSION_1_8) {
+            Path springLoaded = project.configurations[GradleVaadinPlugin.CONFIGURATION_RUN_SERVER]
+                    .resolvedConfiguration.files.find { it.name.startsWith('springloaded') }.toPath()
+            if (springLoaded) {
+                project.logger.info("Using Spring Loaded found from ${springLoaded}")
+                parameters.add("-javaagent:${springLoaded.toAbsolutePath().toString()}")
+                parameters.add('-noverify')
+            } else {
+                project.logger.warn(
+                        "Spring Loaded jar not found in $GradleVaadinPlugin.CONFIGURATION_RUN_SERVER configuration. " +
+                                "Dynamic reloading disabled."
+                )
+            }
         }
 
         // JVM options
@@ -204,9 +209,9 @@ abstract class ApplicationServer {
         // Program args
         parameters.add(serverRunner)
         parameters.add(runTask.serverPort.toString())
-        parameters.add(webAppDir.canonicalPath + File.separator)
+        parameters.add(webAppDir.toAbsolutePath().toString() + File.separator)
         parameters.add(classesDirs.collect { it.canonicalPath + File.separator}.join(','))
-        parameters.add(resourcesDir.canonicalPath + File.separator)
+        parameters.add(resourcesDir.toAbsolutePath().toString() + File.separator)
 
         if ( project.logger.debugEnabled ) {
             parameters.add(Level.FINEST.name)
@@ -216,9 +221,9 @@ abstract class ApplicationServer {
 
         parameters.add(project.name)
 
-        def buildDir = new File(project.buildDir, serverName)
-        buildDir.mkdirs()
-        parameters.add(buildDir.absolutePath)
+        Path buildDir = project.buildDir.toPath().resolve(serverName)
+        Files.createDirectories(buildDir)
+        parameters.add(buildDir.toAbsolutePath().toString())
     }
 
     /**
@@ -241,12 +246,13 @@ abstract class ApplicationServer {
 
         configureProcess(appServerProcess)
 
-        def buildDir = new File(project.buildDir, serverName)
+        Path buildDir = project.buildDir.toPath().resolve(serverName)
         makeClassPathFile(buildDir)
 
         if ( executeServer(appServerProcess) ) {
             monitorLog(stopAfterStart)
         }
+        return true
     }
 
     /**
@@ -259,7 +265,7 @@ abstract class ApplicationServer {
         JavaPluginConvention java = project.convention.getPlugin(JavaPluginConvention)
         SourceSet mainSourceSet = java.sourceSets.getByName(MAIN_SOURCE_SET_NAME)
         List<File> classesDirs = new ArrayList<>(mainSourceSet.output.classesDirs.toList())
-        RunTask runTask = project.tasks.getByName(RunTask.NAME)
+        RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
         if ( runTask.classesDir ) {
             classesDirs.add(0, project.file(runTask.classesDir))
         }
@@ -272,14 +278,14 @@ abstract class ApplicationServer {
      * @return
      *      the root directory for resources
      */
-    protected File getResourcesDir() {
+    protected Path getResourcesDir() {
         JavaPluginConvention java = project.convention.getPlugin(JavaPluginConvention)
         SourceSet mainSourceSet = java.sourceSets.getByName(MAIN_SOURCE_SET_NAME)
-        RunTask runTask = project.tasks.getByName(RunTask.NAME)
+        RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
         if ( runTask.classesDir ) {
-            return project.file(runTask.classesDir)
+            return project.file(runTask.classesDir).toPath()
         }
-        mainSourceSet.output.resourcesDir
+        mainSourceSet.output.resourcesDir.toPath()
     }
 
     /**
@@ -288,8 +294,8 @@ abstract class ApplicationServer {
      * @return
      *      the root directory of the web app
      */
-    protected File getWebAppDir() {
-        project.convention.getPlugin(WarPluginConvention).webAppDir
+    protected Path getWebAppDir() {
+        project.convention.getPlugin(WarPluginConvention).webAppDir.toPath()
     }
 
     /**
@@ -310,12 +316,12 @@ abstract class ApplicationServer {
         }
 
         // Watch for changes in classes
-        RunTask runTask = project.tasks.getByName(RunTask.NAME)
+        RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
 
         // Watch for changes in theme
         def self = this
         if (runTask.themeAutoRecompile ) {
-            CompileThemeTask compileThemeTask = project.tasks.getByName(CompileThemeTask.NAME)
+            CompileThemeTask compileThemeTask = project.tasks.getByName(CompileThemeTask.NAME) as CompileThemeTask
             GradleVaadinPlugin.THREAD_POOL.submit {
                 watchThemeDirectoryForChanges(self) {
 
@@ -341,7 +347,7 @@ abstract class ApplicationServer {
     protected void monitorLog(boolean stopAfterStart=false) {
         Util.logProcess(project, process, "${serverName}.log") { line ->
             if ( line.contains(successfullyStartedLogToken) ) {
-                RunTask runTask = project.tasks.getByName(RunTask.NAME)
+                RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
                 def resultStr = "Application running on http://localhost:${runTask.serverPort} "
                 if ( runTask.debug ) {
                     resultStr += "(debugger on ${runTask.debugPort})"
@@ -370,7 +376,7 @@ abstract class ApplicationServer {
      * Open the users browser and point it the running server
      */
     protected void openBrowser() {
-        RunTask runTask = project.tasks.getByName(RunTask.NAME)
+        RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
         // Build browser GET parameters
         String paramString = ''
         if ( runTask.debug ) {
@@ -395,7 +401,7 @@ abstract class ApplicationServer {
      * @param stopAfterStart
      *      <code>true</code> if the server should stop right after it has started.
      */
-    protected void startAndBlock(boolean stopAfterStart=false) {
+    void startAndBlock(boolean stopAfterStart=false) {
         while(true) {
             // Keep main loop running so runTask does not end. Task
             // shutdownhook will terminate server
@@ -451,7 +457,7 @@ abstract class ApplicationServer {
     protected static void watchClassDirectoryForChanges(final ApplicationServer server, Closure exec) {
         Project project = server.project
 
-        final RunTask RUNTASK = project.tasks.getByName(RunTask.NAME)
+        final RunTask RUNTASK = project.tasks.getByName(RunTask.NAME) as RunTask
         List<File> classesDirs = []
         if ( RUNTASK.classesDir && project.file(RUNTASK.classesDir).exists() ) {
             classesDirs.add(project.file(RUNTASK.classesDir))
@@ -486,12 +492,12 @@ abstract class ApplicationServer {
     protected static void watchThemeDirectoryForChanges(final ApplicationServer server, Closure exec) {
         Project project = server.project
 
-        File themesDir = Util.getThemesDirectory(project)
+        Path themesDir = Util.getThemesDirectory(project)
         if ( themesDir.exists() ) {
             def executor = Executors.newSingleThreadScheduledExecutor()
             ScheduledFuture currentTask
 
-            Util.watchDirectoryForChanges(project, themesDir, { WatchKey key, WatchEvent event ->
+            Util.watchDirectoryForChanges(project, themesDir.toFile(), { WatchKey key, WatchEvent event ->
                 if (server.process && event.context().toString().toLowerCase().endsWith(".scss") ) {
                     if ( currentTask ) {
                         currentTask.cancel(true)

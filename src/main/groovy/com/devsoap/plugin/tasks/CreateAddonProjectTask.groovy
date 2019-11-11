@@ -24,8 +24,12 @@ import com.devsoap.plugin.creators.ProjectCreator
 import com.devsoap.plugin.creators.ThemeCreator
 import com.devsoap.plugin.extensions.VaadinPluginExtension
 import org.gradle.api.DefaultTask
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.options.Option
 import org.gradle.api.tasks.TaskAction
+
+import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * Creates a new addon project with two modules, one addon module and one demo modules which utilizes the addon
@@ -46,6 +50,7 @@ class CreateAddonProjectTask extends DefaultTask {
     /**
      * The addon name
      */
+    @Input
     @Option(option = 'name', description = 'Addon name')
     String componentName = 'MyComponent'
 
@@ -67,8 +72,8 @@ class CreateAddonProjectTask extends DefaultTask {
     }
 
     private makeAddonModule() {
-        def addonDir = project.file('addon')
-        addonDir.mkdirs()
+        Path addonDir = project.file('addon').toPath()
+        Files.createDirectories(addonDir)
 
         def substitutions = [:]
         substitutions[PLUGIN_VERSION_ATTRIBUTE] = GradleVaadinPlugin.version
@@ -80,38 +85,38 @@ class CreateAddonProjectTask extends DefaultTask {
         TemplateUtil.writeTemplate('addonProject/addon.gradle', addonDir, BUILD_FILE, substitutions)
 
         new ComponentCreator(
-                javaDir:new File(addonDir, MAIN_SOURCE_FOLDER),
+                javaDir:addonDir.resolve(MAIN_SOURCE_FOLDER),
                 componentName:componentName
         ).run()
 
         new AddonThemeCreator(
-                resourceDir:new File(addonDir, 'src/main/resources'),
+                resourceDir:addonDir.resolve('src/main/resources'),
                 themeName:componentName,
                 templateDir:TEMPLATE_DIRECTORY
         ).run()
 
-        def widgetsetDir = new File(addonDir, 'src/main/resources/client')
+        def widgetsetDir = addonDir.resolve('src/main/resources/client')
         widgetsetDir.mkdirs()
         TemplateUtil.writeTemplate('addonProject/AddonWidgetset.xml', widgetsetDir, "${componentName}Widgetset.gwt.xml")
     }
 
     private makeDemoModule() {
-        def demoDir = project.file('demo')
-        demoDir.mkdirs()
+        Path demoDir = project.file('demo').toPath()
+        Files.createDirectories(demoDir)
 
         def substitutions = [:]
         substitutions[PLUGIN_VERSION_ATTRIBUTE] = GradleVaadinPlugin.version
 
         TemplateUtil.writeTemplate('addonProject/demo.gradle', demoDir, BUILD_FILE, substitutions)
 
-        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
         VaadinPluginExtension vaadin = project.extensions.getByType(VaadinPluginExtension)
         new ProjectCreator(
                 applicationName:DEMO_APPLICATION_NAME,
                 applicationPackage: 'com.example.demo',
                 widgetsetCDN: compileWidgetsetTask.widgetsetCDN,
-                javaDir:new File(demoDir, MAIN_SOURCE_FOLDER),
-                resourceDir:new File(demoDir, 'src/main/resources/'),
+                javaDir:demoDir.resolve(MAIN_SOURCE_FOLDER),
+                resourceDir:demoDir.resolve('src/main/resources/'),
                 templateDir:TEMPLATE_DIRECTORY,
                 uiImports: ["server.${componentName.toLowerCase()}.$componentName"],
                 uiSubstitutions: ['addonComponentType' : componentName],
@@ -121,12 +126,12 @@ class CreateAddonProjectTask extends DefaultTask {
 
         new ThemeCreator(
                 themeName:DEMO_APPLICATION_NAME,
-                themesDirectory:new File(demoDir, 'src/main/webapp/VAADIN/themes'),
+                themesDirectory:demoDir.resolve('src/main/webapp/VAADIN/themes'),
                 vaadinVersion:vaadin.version
         ).run()
     }
 
     private makeGradleSettings() {
-        TemplateUtil.writeTemplate('addonProject/settings.gradle', project.rootDir, 'settings.gradle')
+        TemplateUtil.writeTemplate('addonProject/settings.gradle', project.rootDir.toPath(), 'settings.gradle')
     }
 }

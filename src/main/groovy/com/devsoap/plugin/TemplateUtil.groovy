@@ -20,6 +20,9 @@ import groovy.text.TemplateEngine
 import org.apache.commons.lang.StringUtils
 import org.gradle.api.Project
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * Utility class for template converstions
  *
@@ -52,8 +55,8 @@ class TemplateUtil {
      *      the target file where the template was written
      *
      */
-    static File writeTemplate(String templateFileName, File targetDir, String targetFileName = templateFileName,
-                         Map substitutions = [:], removeBlankLines = false) {
+    static Path writeTemplate(String templateFileName, Path targetDir, String targetFileName = templateFileName,
+                              Map substitutions = [:], removeBlankLines = false) {
         URL templateUrl = TemplateUtil.getClassLoader().getResource("templates/${templateFileName}.template")
         if ( !templateUrl ) {
             throw new FileNotFoundException("Could not find template 'templates/${templateFileName}.template'")
@@ -81,14 +84,14 @@ class TemplateUtil {
      * @return
      *      the target file where the template was written
      */
-    static File writeTemplateFromString(String templateContent, File targetDir, String targetFileName) {
-        File targetFile = new File(targetDir, targetFileName)
-        if ( !targetFile.exists() ) {
-            targetFile.parentFile.mkdirs()
-            targetFile.createNewFile()
+    static Path writeTemplateFromString(String templateContent, Path targetDir, String targetFileName) {
+        Path targetFile = targetDir.resolve(targetFileName)
+        if ( !Files.exists(targetFile) ) {
+            Files.createDirectories(targetFile.parent)
+            Files.createFile(targetFile)
         }
 
-        if ( !targetFile.canWrite() ) {
+        if ( !Files.isWritable(targetFile) ) {
             throw new FileNotFoundException("Could not write to target file $targetFile.canonicalPath")
         }
 

@@ -29,6 +29,7 @@ import org.gradle.util.GFileUtils
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 
 
@@ -97,7 +98,7 @@ class PayaraApplicationServer extends ApplicationServer {
         /**
          * Ensure theme is compiled and compressed before copying
          */
-        RunTask runTask = project.tasks.getByName(RunTask.NAME)
+        RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
         if(runTask.themeAutoRecompile) {
             GradleVaadinPlugin.THREAD_POOL.submit {
                 watchThemeDirectoryForChanges(self) {
@@ -106,7 +107,7 @@ class PayaraApplicationServer extends ApplicationServer {
                     CompileThemeTask.compile(project, true)
 
                     // Recompress theme
-                    CompileThemeTask compileThemeTask = project.tasks.getByName(CompileThemeTask.NAME)
+                    CompileThemeTask compileThemeTask = project.tasks.getByName(CompileThemeTask.NAME) as CompileThemeTask
                     if(compileThemeTask.compress){
                         CompressCssTask.compress(project, true)
                     }
@@ -121,7 +122,7 @@ class PayaraApplicationServer extends ApplicationServer {
     @Override
     void defineDependecies(DependencyHandler projectDependencies, DependencySet dependencies) {
         Dependency payaraWebProfile = projectDependencies.create(
-                "fish.payara.extras:payara-embedded-web:${Util.pluginProperties.getProperty('payara.version')}")
+                "org.glassfish.main.common:simple-glassfish-api:${Util.pluginProperties.getProperty('payara.version')}")
         dependencies.add(payaraWebProfile)
     }
 
@@ -131,39 +132,39 @@ class PayaraApplicationServer extends ApplicationServer {
      * can work properly.
      */
     void updateExplodedWar() {
-        File buildDir = new File(project.buildDir, serverName)
-        File warDir = new File(buildDir, 'war')
-        if(warDir.exists()){
-            warDir.delete()
+        Path buildDir = project.buildDir.toPath().resolve(serverName)
+        Path warDir = buildDir.resolve('war')
+        if(Files.exists(warDir)){
+            warDir.deleteDir()
         }
-        warDir.mkdirs()
+        Files.createDirectories(warDir)
 
-        if(webAppDir.exists()){
-            GFileUtils.copyDirectory(webAppDir, warDir)
+        if(Files.exists(webAppDir)){
+            GFileUtils.copyDirectory(webAppDir.toFile(), warDir.toFile())
         }
 
-        File webInf = new File(warDir, 'WEB-INF')
-        webInf.mkdirs()
+        Path webInf = warDir.resolve('WEB-INF')
+        Files.createDirectories(webInf)
 
-        File classes = new File(webInf, 'classes')
-        classes.mkdirs()
+        Path classes = webInf.resolve('classes')
+        Files.createDirectories(classes)
         classesDirs.each {
-            GFileUtils.copyDirectory(it, classes)
+            GFileUtils.copyDirectory(it, classes.toFile())
         }
 
-        if(resourcesDir.exists()){
-            GFileUtils.copyDirectory(resourcesDir, classes)
+        if(Files.exists(resourcesDir)){
+            GFileUtils.copyDirectory(resourcesDir.toFile(), classes.toFile())
         }
 
-        File lib = new File(webInf, 'lib')
-        lib.mkdirs()
+        Path lib = webInf.resolve('lib')
+        Files.createDirectories(lib)
 
         String[] dependencies = new String(Files.readAllBytes(Paths.get("$buildDir/classpath.txt")),
                 StandardCharsets.UTF_8).split(";")
         dependencies.each {
-            File jar = new File(it)
-            if(jar.exists()){
-                GFileUtils.copyFile(jar, new File(lib, jar.name))
+            Path jar = Paths.get(it)
+            if(Files.exists(jar)){
+                GFileUtils.copyFile(jar.toFile(), lib.resolve(jar.fileName.toString()).toFile())
             }
         }
     }

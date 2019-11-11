@@ -1,15 +1,15 @@
 package com.devsoap.plugin.tests
 
-import com.devsoap.plugin.categories.WidgetsetAndThemeCompile
-import org.junit.Assert
-import org.junit.Test
-import org.junit.experimental.categories.Category
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
 
-import java.nio.file.Paths
+import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
-import static org.junit.Assert.assertTrue
+import static org.junit.jupiter.api.Assertions.assertTrue
 
 /**
  * Tests the creation the WAR archive
@@ -17,9 +17,10 @@ import static org.junit.Assert.assertTrue
 class WARArchiveTest extends IntegrationTest {
 
     @Override
+    @BeforeEach
     void setup() {
         super.setup()
-        buildFile << "vaadin.version = '7.6.4'\n"
+        buildFile << "vaadin.version = '8.12.2'\n"
     }
 
     @Test void 'WAR task action is run'() {
@@ -28,31 +29,30 @@ class WARArchiveTest extends IntegrationTest {
         assertTrue output.contains('Applying WarPluginAction')
     }
 
-    @Category(WidgetsetAndThemeCompile)
+    @Tag("WidgetsetAndThemeCompile")
     @Test void 'Project with no dependencies'() {
 
         runWithArguments('war')
 
         // Files in WEB-INF/lib
         def final FILES_IN_WEBINF_LIB = [
-                'vaadin-server-7.6.4.jar',
-                'vaadin-themes-7.6.4.jar',
+                'vaadin-server-8.12.2.jar',
+                'vaadin-themes-8.12.2.jar',
                 'vaadin-sass-compiler-0.9.13.jar',
-                'vaadin-shared-7.6.4.jar',
-                'jsoup-1.8.3.jar',
+                'vaadin-shared-8.12.2.jar',
+                'jsoup-1.11.2.jar',
                 'sac-1.3.jar',
                 'flute-1.3.0.gg2.jar',
-                'yuicompressor-2.4.8.jar',
-                'streamhtmlparser-jsilver-0.0.10.vaadin1.jar',
-                'guava-16.0.1.vaadin1.jar',
-                'js-1.7R2.jar',
-                'vaadin-client-compiled-7.6.4.jar'
+                'vaadin-client-compiled-8.12.2.jar',
+                'gentyref-1.2.0.vaadin1.jar'
         ]
 
-        assertFilesInFolder(warFile, FILES_IN_WEBINF_LIB, 'WEB-INF/lib')
+        warFile.withCloseable { ZipFile it ->
+            assertFilesInFolder(it, FILES_IN_WEBINF_LIB, 'WEB-INF/lib')
+        }
     }
 
-    @Category(WidgetsetAndThemeCompile)
+    @Tag("WidgetsetAndThemeCompile")
     @Test void 'Project with widgetset'() {
         buildFile << "vaadinCompile.widgetset = 'com.example.TestWidgetset'\n"
 
@@ -60,23 +60,22 @@ class WARArchiveTest extends IntegrationTest {
 
         // Files in WEB-INF/lib
         def final FILES_IN_WEBINF_LIB = [
-                'vaadin-server-7.6.4.jar',
-                'vaadin-themes-7.6.4.jar',
+                'vaadin-server-8.12.2.jar',
+                'vaadin-themes-8.12.2.jar',
                 'vaadin-sass-compiler-0.9.13.jar',
-                'vaadin-shared-7.6.4.jar',
-                'jsoup-1.8.3.jar',
+                'vaadin-shared-8.12.2.jar',
+                'jsoup-1.11.2.jar',
                 'sac-1.3.jar',
                 'flute-1.3.0.gg2.jar',
-                'yuicompressor-2.4.8.jar',
-                'streamhtmlparser-jsilver-0.0.10.vaadin1.jar',
-                'guava-16.0.1.vaadin1.jar',
-                'js-1.7R2.jar'
+                'gentyref-1.2.0.vaadin1.jar'
         ]
 
-        assertFilesInFolder(warFile, FILES_IN_WEBINF_LIB, 'WEB-INF/lib')
+        warFile.withCloseable { ZipFile it ->
+            assertFilesInFolder(it, FILES_IN_WEBINF_LIB, 'WEB-INF/lib')
+        }
     }
 
-    @Category(WidgetsetAndThemeCompile)
+    @Tag("WidgetsetAndThemeCompile")
     @Test void 'Project theme is included in archive'() {
 
         runWithArguments('vaadinCreateProject')
@@ -86,15 +85,17 @@ class WARArchiveTest extends IntegrationTest {
             'styles.scss',
             'styles.css',
             'styles.css.gz',
-            "${projectDir.root.name}.scss".toString(),
+            "${projectDir.fileName.toString()}.scss".toString(),
             'addons.scss',
             'favicon.ico'
         ]
 
-        assertFilesInFolder(warFile, THEME_FILES, "VAADIN/themes/${projectDir.root.name.capitalize()}".toString())
+        warFile.withCloseable { ZipFile it ->
+            assertFilesInFolder(it, THEME_FILES, "VAADIN/themes/${projectDir.fileName.toString().capitalize()}".toString())
+        }
     }
 
-    @Category(WidgetsetAndThemeCompile)
+    @Tag("WidgetsetAndThemeCompile")
     @Test void 'Project widgetset is included in archive'() {
 
         runWithArguments('vaadinCreateProject', '--widgetset=com.example.Widgetset')
@@ -105,13 +106,15 @@ class WARArchiveTest extends IntegrationTest {
                 'com.example.Widgetset.nocache.js'
         ]
 
-        assertFilesInFolder(warFile, WIDGETSET_FILES, 'VAADIN/widgetsets/com.example.Widgetset', true)
+        warFile.withCloseable { ZipFile it ->
+            assertFilesInFolder(it, WIDGETSET_FILES, 'VAADIN/widgetsets/com.example.Widgetset', true)
+        }
     }
 
     @Test void 'Provided and runtime dependencies not included'() {
         buildFile << """
         dependencies {
-            runtime 'commons-lang:commons-lang:2.6'
+            runtimeOnly 'commons-lang:commons-lang:2.6'
             compileOnly 'commons-lang:commons-lang:2.6'
             providedCompile 'commons-lang:commons-lang:2.6'
         }
@@ -122,7 +125,7 @@ class WARArchiveTest extends IntegrationTest {
         'Project with no dependencies'()
     }
 
-    @Category(WidgetsetAndThemeCompile)
+    @Tag("WidgetsetAndThemeCompile")
     @Test void 'Vaadin addons in vaadinCompile are added to war'() {
         buildFile << """
         dependencies {
@@ -132,7 +135,9 @@ class WARArchiveTest extends IntegrationTest {
 
         runWithArguments('war')
 
-        assertFilesInFolder(warFile, ["commons-lang-2.6.jar"], 'WEB-INF/lib', true)
+        warFile.withCloseable { ZipFile it ->
+            assertFilesInFolder(it, ["commons-lang-2.6.jar"], 'WEB-INF/lib', true)
+        }
     }
 
     private static List<ZipEntry> getFilesInFolder(ZipFile archive, String folder) {
@@ -142,20 +147,20 @@ class WARArchiveTest extends IntegrationTest {
     }
 
     private ZipFile getWarFile() {
-        def libsDir = Paths.get(projectDir.root.canonicalPath, 'build', 'libs').toFile()
-        new ZipFile(new File(libsDir, projectDir.root.name + '.war'))
+        Path libsDir = projectDir.resolve('build').resolve('libs')
+        new ZipFile(libsDir.resolve(projectDir.getFileName().toString() + '.war').toFile())
     }
 
     private static void assertFilesInFolder(ZipFile archive, List<String> files, String folder,
                                             boolean ignoreExtraFiles = false) {
-        def webInfLib = getFilesInFolder(archive, folder)
+        List<ZipEntry> webInfLib = getFilesInFolder(archive, folder)
 
         // Check for extra files
         if ( !ignoreExtraFiles ) {
             webInfLib.each { ZipEntry entry ->
-                Assert.assertTrue(
-                        "Archive contained extra file $entry.name",
-                        files.contains(entry.name - (folder + '/')))
+                assertTrue(
+                        files.contains(entry.name - (folder + '/')),
+                        "Archive contained extra file $entry.name")
             }
         }
 
@@ -164,7 +169,7 @@ class WARArchiveTest extends IntegrationTest {
             ZipEntry file = webInfLib.find { ZipEntry entry ->
                 entry.name == "$folder/$fileName".toString()
             }
-            Assert.assertNotNull("File $folder/$fileName was missing from archive", file)
+            Assertions.assertNotNull(file, "File $folder/$fileName was missing from archive")
         }
     }
 }

@@ -60,7 +60,7 @@ class IdeaPluginAction extends PluginAction {
         // Configure output dirs only if user has not defined it himself
         if ( module.inheritOutputDirs == null ) {
             module.inheritOutputDirs = false
-            RunTask runTask = project.tasks.getByName(RunTask.NAME)
+            RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
             if ( runTask.classesDir == null ) {
                 module.outputDir = Util.getMainSourceSet(project).outputDir
                 module.testOutputDir = Util.getMainTestSourceSet(project).outputDir

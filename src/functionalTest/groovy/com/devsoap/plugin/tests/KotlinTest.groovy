@@ -3,91 +3,103 @@ package com.devsoap.plugin.tests
 import com.devsoap.plugin.tasks.CreateDirectoryZipTask
 import com.devsoap.plugin.tasks.CreateProjectTask
 import com.devsoap.plugin.tasks.RunTask
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 
-import java.nio.file.Paths
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.stream.Stream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
-import static org.junit.Assert.assertEquals
-import static org.junit.Assert.fail
-import static org.junit.Assert.assertNull
-import static org.junit.Assert.assertTrue
+import static org.junit.jupiter.api.Assertions.assertEquals
+import static org.junit.jupiter.api.Assertions.fail
+import static org.junit.jupiter.api.Assertions.assertNull
+import static org.junit.jupiter.api.Assertions.assertTrue
 
 /**
  * Tests Kotlin project creation and usage
  */
-@RunWith(Parameterized)
 class KotlinTest extends KotlinIntegrationTest {
 
-    KotlinTest(String kotlinVersion) {
-        super(kotlinVersion)
+    KotlinTest() { }
+
+    static Stream<String> getKotlinVersions() {
+        return Stream.of('1.4.32')
     }
 
-    @Parameterized.Parameters(name = "Kotlin {0}")
-    static Collection<String> getKotlinVersions() {
-        [ '1.3.11']
+    void setup(String kotlinVersion) {
+        super.setup(kotlinVersion)
+        super.setup()
     }
 
-    @Test void 'Create project'() {
+    @MethodSource("getKotlinVersions")
+    @ParameterizedTest void 'Create project'(String kotlinVersion) {
+        setup(kotlinVersion)
 
         runWithArguments(CreateProjectTask.NAME, '--name=hello-world')
 
-        File pkg = Paths.get(projectDir.root.canonicalPath,
-                'src', 'main', 'kotlin','com','example', 'helloworld').toFile()
-        assertTrue 'Package name should have been converted', pkg.exists()
-        assertTrue 'Servlet should exist', new File(pkg, 'HelloWorldServlet.kt').exists()
-        assertTrue 'UI should exist', new File(pkg, 'HelloWorldUI.kt').exists()
+        Path pkg = projectDir.resolve('src').resolve('main').resolve('kotlin')
+                .resolve('com').resolve('example').resolve('helloworld')
+        assertTrue Files.exists(pkg),'Package name should have been converted'
+        assertTrue Files.exists(pkg.resolve('HelloWorldServlet.kt')),'Servlet should exist'
+        assertTrue Files.exists(pkg.resolve('HelloWorldUI.kt')), 'UI should exist'
 
         runWithArguments('classes')
 
-        File classes = Paths.get(projectDir.root.canonicalPath,
-                'build', 'classes', 'kotlin', 'main', 'com','example', 'helloworld').toFile()
-        assertTrue 'Classes should exist', classes.exists()
-        assertTrue 'Servlet not compiled', new File(classes, 'HelloWorldServlet.class').exists()
-        assertTrue 'UI not compiled', new File(classes, 'HelloWorldUI.class').exists()
+        Path classes = projectDir.resolve('build').resolve('classes').resolve('kotlin')
+                .resolve('main').resolve('com').resolve('example').resolve('helloworld')
+        assertTrue Files.exists(classes), 'Classes should exist'
+        assertTrue Files.exists(classes.resolve('HelloWorldServlet.class')), 'Servlet not compiled'
+        assertTrue Files.exists(classes.resolve('HelloWorldUI.class')), 'UI not compiled'
     }
 
-    @Test void 'Run with Jetty'() {
+    @MethodSource("getKotlinVersions")
+    @ParameterizedTest void 'Run with Jetty'(String kotlinVersion) {
+        setup(kotlinVersion)
         buildFile << """
            val vaadinRun : com.devsoap.plugin.tasks.RunTask by tasks
            vaadinRun.apply {
                 server = "jetty"
+                debugPort = ${getPort()}
+                serverPort = ${getPort()}
            }
         """.stripIndent()
 
         def output = runWithArguments('--info', CreateProjectTask.NAME, RunTask.NAME, '--stopAfterStart')
-        assertTrue output, output.contains("Starting jetty")
-        assertTrue output, output.contains('Application running on ')
+        assertTrue output.contains("Starting jetty"), output
+        assertTrue output.contains('Application running on '), output
     }
 
-    @Test void 'No javadoc for Kotlin projects'() {
+    @MethodSource("getKotlinVersions")
+    @ParameterizedTest void 'No javadoc for Kotlin projects'(String kotlinVersion) {
+        setup(kotlinVersion)
         runWithArguments(CreateDirectoryZipTask.NAME)
 
-        File libsDir = Paths.get(projectDir.root.canonicalPath, 'build', 'libs').toFile()
+        Path libsDir = projectDir.resolve('build').resolve('libs')
 
-        File javadocJar = libsDir.listFiles().find { it.name.endsWith('-javadoc.jar')}
-        assertNull 'Javadoc was built', javadocJar
+        Path javadocJar = Files.walk(libsDir).find { it -> it.getFileName().toString().endsWith('-javadoc.jar')} as Path
+        assertNull javadocJar, 'Javadoc was built'
 
-        File sourcesJar = libsDir.listFiles().find { it.name.endsWith('-sources.jar')}
-        assertTrue 'Sources was not built', sourcesJar.exists()
+        Path sourcesJar = Files.walk(libsDir).find { it -> it.getFileName().toString().endsWith('-sources.jar')} as Path
+        assertTrue Files.exists(sourcesJar), 'Sources was not built'
 
-        File distributionDir = Paths.get(projectDir.root.canonicalPath, 'build', 'distributions').toFile()
+        Path distributionDir = projectDir.resolve('build').resolve('distributions')
 
-        File addonZip = distributionDir.listFiles().first()
-        assertTrue 'Distribution zip was not built', addonZip.exists()
+        Path addonZip = Files.walk(distributionDir).find { it -> Files.isRegularFile(it) } as Path
+        assertTrue Files.exists(addonZip), 'Distribution zip was not built'
 
-        ZipFile zip = new ZipFile(addonZip)
-        zip.entries().eachWithIndex { ZipEntry entry, int i ->
-            switch (i) {
-                case 0: assertEquals 'META-INF/', entry.name; break
-                case 1: assertEquals 'META-INF/MANIFEST.MF', entry.name; break
-                case 2: assertEquals 'libs/', entry.name; break
-                case 3: assertEquals "libs/$projectDir.root.name-sources.jar".toString(), entry.name; break
-                case 4: assertEquals "libs/${projectDir.root.name}.jar".toString(), entry.name; break
-                default: fail("Unexpected file $entry.name")
+        ZipFile zip = new ZipFile(addonZip.toFile())
+        zip.withCloseable { ZipFile it ->
+            it.entries().eachWithIndex { ZipEntry entry, int i ->
+                switch (i) {
+                    case 0: assertEquals 'META-INF/', entry.name; break
+                    case 1: assertEquals 'META-INF/MANIFEST.MF', entry.name; break
+                    case 2: assertEquals 'libs/', entry.name; break
+                    case 3: assertEquals "libs/${projectDir.getFileName().toString()}-sources.jar".toString(), entry.name; break
+                    case 4: assertEquals "libs/${projectDir.getFileName().toString()}.jar".toString(), entry.name; break
+                    default: fail("Unexpected file $entry.name")
+                }
             }
         }
     }

@@ -20,9 +20,12 @@ import com.devsoap.plugin.TemplateUtil
 import com.devsoap.plugin.Util
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.options.Option
 import org.gradle.api.tasks.TaskAction
 
+import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 
 /**
@@ -42,30 +45,35 @@ class CreateDesignTask extends DefaultTask{
     /**
      * The design class name
      */
+    @Input
     @Option(option = 'name', description = 'The name of the design')
     String designName = 'BasicView'
 
     /**
      * The package where the design should be put
      */
+    @Input
     @Option(option = 'package', description = 'The package of the design')
     String designPackage = "com.example.${designName.toLowerCase()}"
 
     /**
      * Should a companion java file be created
      */
+    @Input
     @Option(option = 'companionFile', description = 'Create the companion file for the design')
     boolean createCompanionFile = true
 
     /**
      * Should a companion implementation file be created
      */
+    @Input
     @Option(option = 'implementationFile', description = 'Create implementation file for the design')
     boolean createImplementationFile = true
 
     /**
      * Should we output the templates available to the console instead of creating a design.
      */
+    @Input
     @Option(option = 'templates', description =
             'Lists the available templates. Add your templates to .vaadin/designer/templates to use them here.')
     boolean listTemplates = false
@@ -73,6 +81,7 @@ class CreateDesignTask extends DefaultTask{
     /**
      * The template to use for creating a design
      */
+    @Input
     @Option(option = 'template', description = "The selected template to use. Must be included in --templates")
     String template = null
 
@@ -109,9 +118,9 @@ class CreateDesignTask extends DefaultTask{
     }
 
     private makeDesignFile() {
-        File resourcesDir = project.sourceSets.main.resources.srcDirs.first()
-        File designDir = new File(resourcesDir, TemplateUtil.convertFQNToFilePath(designPackage))
-        designDir.mkdirs()
+        Path resourcesDir = project.sourceSets.main.resources.srcDirs.first().toPath()
+        Path designDir = resourcesDir.resolve(TemplateUtil.convertFQNToFilePath(designPackage))
+        Files.createDirectories(designDir)
 
         if ( template ) {
             if ( !templates.containsKey(template) ) {
@@ -124,9 +133,9 @@ class CreateDesignTask extends DefaultTask{
     }
 
     private makeDesignCompanionFile() {
-        File javaDir = Util.getMainSourceSet(project, true).srcDirs.first()
-        File designDir = new File(javaDir, TemplateUtil.convertFQNToFilePath(designPackage))
-        designDir.mkdirs()
+        Path javaDir = Util.getMainSourceSet(project, true).srcDirs.first().toPath()
+        Path designDir = javaDir.resolve(TemplateUtil.convertFQNToFilePath(designPackage))
+        Files.createDirectories(designDir)
 
         Map substitutions = [:]
         substitutions[DESIGN_PACKAGE_KEY] = designPackage
@@ -136,9 +145,9 @@ class CreateDesignTask extends DefaultTask{
     }
 
     private makeDesignImplementationFile() {
-        File javaDir = Util.getMainSourceSet(project).srcDirs.first()
-        File designDir = new File(javaDir, TemplateUtil.convertFQNToFilePath(designPackage))
-        designDir.mkdirs()
+        Path javaDir = Util.getMainSourceSet(project).srcDirs.first().toPath()
+        Path designDir = javaDir.resolve(TemplateUtil.convertFQNToFilePath(designPackage))
+        Files.createDirectories(designDir)
 
         Map substitutions = [:]
         substitutions[DESIGN_PACKAGE_KEY] = designPackage
@@ -162,7 +171,7 @@ class CreateDesignTask extends DefaultTask{
     }
 
     private Map<String, File> getTemplates() {
-        File templatesDir = Paths.get(System.getProperty("user.home"), '.vaadin', 'designer', 'templates').toFile()
+        Path templatesDir = Paths.get(System.getProperty("user.home"), '.vaadin', 'designer', 'templates')
         Map templateMap = [:]
         templatesDir.eachFile { File file ->
             if ( !file.isDirectory() && file.name.toLowerCase().endsWith('.html') ) {

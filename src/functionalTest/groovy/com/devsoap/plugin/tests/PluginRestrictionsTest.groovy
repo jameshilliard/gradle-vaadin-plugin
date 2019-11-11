@@ -1,7 +1,7 @@
 package com.devsoap.plugin.tests
 
-import static org.junit.Assert.assertTrue
-import org.junit.Test
+import static org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 /**
  * Created by john on 1/6/15.

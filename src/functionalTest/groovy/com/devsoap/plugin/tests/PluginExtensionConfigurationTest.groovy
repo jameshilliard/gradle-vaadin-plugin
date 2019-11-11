@@ -15,32 +15,33 @@
  */
 package com.devsoap.plugin.tests
 
-import com.devsoap.plugin.categories.WidgetsetCompile
-import org.junit.Test
-import org.junit.experimental.categories.Category
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
 
 /**
  * Tests the extension configurations added to the project
  */
 class PluginExtensionConfigurationTest extends MultiProjectIntegrationTest {
 
-    @Category(WidgetsetCompile)
+    @Tag("WidgetsetCompile")
     @Test void 'Extension configurations are applied to sub projects'() {
         makeProject('project1')
         makeProject('project2')
+
+        int serverPort = getPort()
 
         buildFile << """
 
             project(':project1') {
                 vaadinRun {
-                    serverPort 1234
+                    serverPort ${serverPort}
                 }
             }
 
             project(':project2') {
 
                 dependencies {
-                    compile project(':project1')
+                    implementation project(':project1')
                 }
 
                 vaadinCompile {
@@ -48,7 +49,7 @@ class PluginExtensionConfigurationTest extends MultiProjectIntegrationTest {
                 }
 
                 vaadinRun {
-                    serverPort 1234
+                    serverPort ${serverPort}
                 }
             }
 

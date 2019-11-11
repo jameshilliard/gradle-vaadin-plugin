@@ -31,7 +31,7 @@ class BuildSourcesJarTask extends Jar {
 
     BuildSourcesJarTask() {
         description = 'Creates a sources jar for the project'
-        classifier = 'sources'
+        archiveClassifier.set('sources')
         from project.sourceSets.main.allSource
     }
 }

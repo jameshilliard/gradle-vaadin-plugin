@@ -1,11 +1,11 @@
 package com.devsoap.plugin.tests
 
 import com.devsoap.plugin.tasks.CreateProjectTask
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
-import static org.junit.Assert.assertEquals
-import static org.junit.Assert.assertFalse
-import static org.junit.Assert.assertTrue
+import static org.junit.jupiter.api.Assertions.assertEquals
+import static org.junit.jupiter.api.Assertions.assertFalse
+import static org.junit.jupiter.api.Assertions.assertTrue
 
 /**
  * Created by john on 7/17/17.
@@ -17,7 +17,7 @@ class PluginVersionCheckTest extends IntegrationTest {
         List<String> lines = output.tokenize('\n')
         for (int i = 0; i < lines.size(); i++) {
             if(lines[i].trim().startsWith(":")) {
-                assertEquals output, ":vaadinPluginVersionCheck", lines[i].trim()
+                assertEquals ":vaadinPluginVersionCheck", lines[i].trim(), output
                 break
             }
         }

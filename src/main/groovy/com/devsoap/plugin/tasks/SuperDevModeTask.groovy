@@ -23,8 +23,11 @@ import org.gradle.api.GradleException
 import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
+
+import java.nio.file.Path
 
 /**
  * Runs the GWT codeserver as well as runs the application in SuperDevMode mode.
@@ -48,18 +51,33 @@ class SuperDevModeTask extends DefaultTask {
     @Internal
     ApplicationServer serverInstance
 
+    @Input
     private final Property<String> server = project.objects.property(String)
+    @Input
     private final Property<Boolean> debug = project.objects.property(Boolean)
+    @Input
     private final Property<Integer> debugPort = project.objects.property(Integer)
+    @Input
     private final ListProperty<String> jvmArgs = project.objects.listProperty(String)
+    @Input
+    private final Property<Boolean> serverRestart = project.objects.property(Boolean)
+    @Input
     private final Property<Integer> serverPort = project.objects.property(Integer)
+    @Input
     private final Property<Boolean> themeAutoRecompile = project.objects.property(Boolean)
+    @Input
     private final Property<Boolean> openInBrowser = project.objects.property(Boolean)
+    @Input
     private final Property<String> classesDir = project.objects.property(String)
+    @Input
     private final Property<Boolean> noserver = project.objects.property(Boolean)
+    @Input
     private final Property<String> bindAddress = project.objects.property(String)
+    @Input
     private final Property<Integer> codeServerPort = project.objects.property(Integer)
+    @Input
     private final ListProperty<String> extraArgs = project.objects.listProperty(String)
+    @Input
     private final Property<String> logLevel = project.objects.property(String)
 
     /**
@@ -129,8 +147,8 @@ class SuperDevModeTask extends DefaultTask {
     }
 
     private void runCodeServer(Closure readyClosure) {
-        File javaDir = Util.getMainSourceSet(project).srcDirs.iterator().next()
-        File widgetsetsDir = Util.getWidgetsetDirectory(project)
+        Path javaDir = Util.getMainSourceSet(project).srcDirs.iterator().next().toPath()
+        Path widgetsetsDir = Util.getWidgetsetDirectory(project)
         widgetsetsDir.mkdirs()
 
         FileCollection classpath = Util.getClientCompilerClassPath(project)
@@ -141,8 +159,8 @@ class SuperDevModeTask extends DefaultTask {
         superdevmodeProcess += 'com.google.gwt.dev.codeserver.CodeServer'
         superdevmodeProcess += ['-bindAddress', getBindAddress()]
         superdevmodeProcess += ['-port', getCodeServerPort()]
-        superdevmodeProcess += ['-workDir', widgetsetsDir.canonicalPath]
-        superdevmodeProcess += ['-src', javaDir.canonicalPath]
+        superdevmodeProcess += ['-workDir', widgetsetsDir.toAbsolutePath().toString()]
+        superdevmodeProcess += ['-src', javaDir.toAbsolutePath().toString()]
         superdevmodeProcess += ['-logLevel', getLogLevel()]
         superdevmodeProcess += ['-noprecompile']
 
@@ -254,6 +272,7 @@ class SuperDevModeTask extends DefaultTask {
      */
     @Deprecated
     void setServerRestart(Boolean restart) {
+        serverRestart.set(restart)
         MessageLogger.nagUserOfDiscontinuedProperty(new Throwable(RunTask.SERVER_RESTART_DEPRECATED_MESSAGE))
         restart
     }

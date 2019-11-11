@@ -18,6 +18,9 @@ package com.devsoap.plugin.creators
 import com.devsoap.plugin.TemplateUtil
 import groovy.transform.Canonical
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * Creates a Vaadin addon theme using pre-defined theme templates.
  *
@@ -30,7 +33,7 @@ class AddonThemeCreator implements Runnable {
     /**
      * Resource source directory.
      */
-    File resourceDir
+    Path resourceDir
 
     /**
      * Theme name.
@@ -47,10 +50,10 @@ class AddonThemeCreator implements Runnable {
      */
     @Override
     void run() {
-        File vaadinDir = new File(resourceDir, 'VAADIN')
-        File addonsDir = new File(vaadinDir, 'addons')
-        File themeDir = new File(addonsDir, themeName)
-        themeDir.mkdirs()
+        Path vaadinDir = resourceDir.resolve('VAADIN')
+        Path addonsDir = vaadinDir.resolve('addons')
+        Path themeDir = addonsDir.resolve(themeName)
+        Files.createDirectories(themeDir)
 
         Map<String, String> substitutions = [:]
         substitutions['themeName'] = themeName

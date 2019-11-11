@@ -173,14 +173,14 @@ class TestbenchNode {
     /**
      * Get the enabled browsers map. See TestBenchNodeExtension for details.
      */
-    List<Map> getBrowsers() {
+    Map<String, String> getBrowsers() {
         browsers.get()
     }
 
     /**
      * Set the enabled browsers map. See TestBenchNodeExtension for details.
      */
-    void setBrowsers(List<Map> browsers) {
+    void setBrowsers(Map<String, String> browsers) {
         this.browsers.set(browsers)
     }
 }

@@ -20,10 +20,15 @@ import com.devsoap.plugin.Util
 import com.devsoap.plugin.servers.ApplicationServer
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
+
+import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * Runs GWT DevMode
@@ -49,18 +54,33 @@ class DevModeTask extends DefaultTask {
     @Internal
     ApplicationServer serverInstance
 
+    @Input
     private final Property<String> server = project.objects.property(String)
+    @Input
     private final Property<Boolean> debug = project.objects.property(Boolean)
+    @Input
     private final Property<Integer> debugPort = project.objects.property(Integer)
+    @Input
     private final ListProperty<String> jvmArgs = project.objects.listProperty(String)
+    @Input
+    private final Property<Boolean> serverRestart = project.objects.property(Boolean)
+    @Input
     private final Property<Integer> serverPort = project.objects.property(Integer)
+    @Input
     private final Property<Boolean> themeAutoRecompile = project.objects.property(Boolean)
+    @Input
     private final Property<Boolean> openInBrowser = project.objects.property(Boolean)
+    @Input
     private final Property<String> classesDir = project.objects.property(String)
+    @Input
     private final Property<Boolean> noserver = project.objects.property(Boolean)
+    @Input
     private final Property<String> bindAddress = project.objects.property(String)
+    @Input
     private final Property<Integer> codeServerPort = project.objects.property(Integer)
+    @Input
     private final ListProperty<String> extraArgs = project.objects.listProperty(String)
+    @Input
     private final Property<String> logLevel = project.objects.property(String)
 
     /**
@@ -127,22 +147,22 @@ class DevModeTask extends DefaultTask {
     }
 
     private void runDevelopmentMode() {
-        def classpath = Util.getClientCompilerClassPath(project)
-        RunTask runTask = project.tasks.getByName(RunTask.NAME)
+        FileCollection classpath = Util.getClientCompilerClassPath(project)
+        RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
 
-        File devmodeDir = new File(project.buildDir, 'devmode')
+        Path devmodeDir = project.buildDir.toPath().resolve('devmode')
 
-        File deployDir = new File(devmodeDir, 'deploy')
-        deployDir.mkdirs()
+        Path deployDir = devmodeDir.resolve('deploy')
+        Files.createDirectories(deployDir)
 
-        File logsDir = new File(devmodeDir, 'logs')
-        logsDir.mkdirs()
+        Path logsDir = devmodeDir.resolve('logs')
+        Files.createDirectories(logsDir)
 
-        File genDir = new File(devmodeDir, 'gen')
-        genDir.mkdirs()
+        Path genDir = devmodeDir.resolve('gen')
+        Files.createDirectories(genDir)
 
-        File widgetsetDir = Util.getWidgetsetDirectory(project)
-        widgetsetDir.mkdirs()
+        Path widgetsetDir = Util.getWidgetsetDirectory(project)
+        Files.createDirectories(widgetsetDir)
 
         List devmodeProcess = [Util.getJavaBinary(project)]
         devmodeProcess += ["-Djava.io.tmpdir=${temporaryDir.canonicalPath}"]
@@ -150,13 +170,13 @@ class DevModeTask extends DefaultTask {
         devmodeProcess += 'com.google.gwt.dev.DevMode'
         devmodeProcess += Util.getWidgetset(project)
         devmodeProcess += '-noserver'
-        devmodeProcess += ['-war', widgetsetDir.canonicalPath]
-        devmodeProcess += ['-gen', genDir.canonicalPath]
+        devmodeProcess += ['-war', widgetsetDir.toAbsolutePath().toString()]
+        devmodeProcess += ['-gen', genDir.toAbsolutePath().toString()]
         devmodeProcess += ['-startupUrl', "http://localhost:${runTask.serverPort}"]
         devmodeProcess += ['-logLevel', getLogLevel()]
-        devmodeProcess += ['-deploy', deployDir.canonicalPath]
-        devmodeProcess += ['-workDir', devmodeDir.canonicalPath]
-        devmodeProcess += ['-logdir', logsDir.canonicalPath]
+        devmodeProcess += ['-deploy', deployDir.toAbsolutePath().toString()]
+        devmodeProcess += ['-workDir', devmodeDir.toAbsolutePath().toString()]
+        devmodeProcess += ['-logdir', logsDir.toAbsolutePath().toString()]
         devmodeProcess += ['-codeServerPort', getCodeServerPort()]
         devmodeProcess += ['-bindAddress', getBindAddress()]
 
@@ -222,8 +242,8 @@ class DevModeTask extends DefaultTask {
     /**
      * The port the debugger listens to
      */
-    void setDebugPort(Integer debugPort) {
-        this.debugPort.set(debugPort)
+    void setDebugPort(Integer port) {
+        debugPort.set(port)
     }
 
     /**
@@ -258,6 +278,7 @@ class DevModeTask extends DefaultTask {
      */
     @Deprecated
     void setServerRestart(Boolean restart) {
+        serverRestart.set(restart)
         MessageLogger.nagUserOfDiscontinuedProperty(new Throwable(RunTask.SERVER_RESTART_DEPRECATED_MESSAGE))
         restart
     }
@@ -342,8 +363,8 @@ class DevModeTask extends DefaultTask {
     /**
      * To what host or ip should development mode bind itself to. By default localhost.
      */
-    void setBindAddress(String bindAddress) {
-        this.bindAddress.set(bindAddress)
+    void setBindAddress(String address) {
+        bindAddress.set(address)
     }
 
     /**

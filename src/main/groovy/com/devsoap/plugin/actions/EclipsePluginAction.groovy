@@ -67,7 +67,7 @@ class EclipsePluginAction extends PluginAction {
     protected void executeAfterEvaluate(Project project) {
         super.executeAfterEvaluate(project)
         EclipseModel eclipse = project.extensions.getByType(EclipseModel)
-        RunTask runTask = project.tasks.getByName(RunTask.NAME)
+        RunTask runTask = project.tasks.getByName(RunTask.NAME) as RunTask
         def cp = eclipse.classpath
         if ( runTask.classesDir == null ) {
             cp.defaultOutputDir = Util.getMainSourceSet(project).outputDir

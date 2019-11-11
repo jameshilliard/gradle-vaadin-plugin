@@ -27,11 +27,13 @@ import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.TaskAction
 
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.jar.Attributes
 import java.util.jar.JarInputStream
+import java.util.jar.Manifest
 
 /**
  * Updates the GWT module XML file with correct imports
@@ -40,7 +42,6 @@ import java.util.jar.JarInputStream
  * @since 1.0
  */
 @Log
-@CacheableTask
 class UpdateWidgetsetTask extends DefaultTask {
 
     static final String NAME = 'vaadinUpdateWidgetset'
@@ -58,7 +59,7 @@ class UpdateWidgetsetTask extends DefaultTask {
     UpdateWidgetsetTask() {
         description = 'Updates the widgetset xml file'
         onlyIf { Task task ->
-            CompileWidgetsetTask compileTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+            CompileWidgetsetTask compileTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
             compileTask.manageWidgetset && !compileTask.widgetsetCDN && Util.getWidgetset(task.project)
         }
     }
@@ -82,29 +83,29 @@ class UpdateWidgetsetTask extends DefaultTask {
      *      the widgetset file
      */
     @PackageScope
-    static File ensureWidgetPresent(Project project, String widgetsetFQN=Util.getWidgetset(project)) {
-        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+    static Path ensureWidgetPresent(Project project, String widgetsetFQN=Util.getWidgetset(project)) {
+        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
         if (!compileWidgetsetTask.manageWidgetset || compileWidgetsetTask.widgetsetCDN || !widgetsetFQN) {
             return null
         }
 
-        File widgetsetFile = Util.resolveWidgetsetFile(project)
+        Path widgetsetFile = Util.resolveWidgetsetFile(project)
 
         if ( !widgetsetFile ) {
             // No widgetset file detected, create one
-            File resourceDir = project.sourceSets.main.resources.srcDirs.first()
-            widgetsetFile = new File(resourceDir,
+            Path resourceDir = project.sourceSets.main.resources.srcDirs.first().toPath()
+            widgetsetFile = resourceDir.resolve(
                     TemplateUtil.convertFQNToFilePath(widgetsetFQN, GWT_MODULE_XML_POSTFIX))
-            widgetsetFile.parentFile.mkdirs()
-            widgetsetFile.createNewFile()
+            Files.createDirectories(widgetsetFile.parent)
+            Files.createFile(widgetsetFile)
         }
 
         updateWidgetset(widgetsetFile, widgetsetFQN, project)
         widgetsetFile
     }
 
-    private static updateWidgetset(File widgetsetFile, String widgetsetFQN, Project project) {
-        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+    private static updateWidgetset(Path widgetsetFile, String widgetsetFQN, Project project) {
+        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
 
         Map substitutions = [:]
         substitutions['inherits'] = getInherits(project)
@@ -121,7 +122,7 @@ class UpdateWidgetsetTask extends DefaultTask {
         }
 
         // Write widgetset file
-        TemplateUtil.writeTemplate('Widgetset.xml', widgetsetFile.parentFile, widgetsetFile.name, substitutions, true)
+        TemplateUtil.writeTemplate('Widgetset.xml', widgetsetFile.parent, widgetsetFile.getFileName().toString(), substitutions, true)
     }
 
     /**
@@ -154,16 +155,15 @@ class UpdateWidgetsetTask extends DefaultTask {
                     if ( !(dependentProject in scannedProjects) ) {
                         inherits.addAll(findInheritsInDependencies(dependentProject, scannedProjects))
                     }
-                } else if (Util.isResolvable(project, conf)) {
+                } else if (Util.isResolvable(project, conf) && !Util.isDeprecated(conf)) {
                     conf.files(dependency).each { File file ->
                         if ( file.file && file.name.endsWith('.jar') ) {
                             file.withInputStream { InputStream stream ->
-                                def jarStream = new JarInputStream(stream)
-                                jarStream.with {
-                                    def mf = jarStream.getManifest()
-                                    def attributes = mf?.mainAttributes
-                                    def widgetsetsValue = attributes?.getValue(attribute)
-                                    if ( widgetsetsValue && !dependency.name.startsWith('vaadin-client') ) {
+                                new JarInputStream(stream).withCloseable { JarInputStream jarStream ->
+                                    Manifest mf = jarStream.getManifest()
+                                    Attributes attributes = mf?.mainAttributes
+                                    String widgetsetsValue = attributes?.getValue(attribute)
+                                    if (widgetsetsValue && !dependency.name.startsWith('vaadin-client')) {
                                         List<String> widgetsets = widgetsetsValue?.split(',')?.collect { it.trim() }
                                         widgetsets?.each { String widgetset ->
                                             if ( widgetset != DEFAULT_WIDGETSET &&
@@ -200,14 +200,16 @@ class UpdateWidgetsetTask extends DefaultTask {
 
         Set<String> inherits = []
 
-        def scan = { File srcDir ->
-            if ( srcDir.exists() ) {
-                project.fileTree(srcDir.absolutePath)
+        def scan = { File srcDirFile ->
+            Path srcDir = srcDirFile.toPath()
+            if ( Files.exists(srcDir) ) {
+                project.fileTree(srcDir.toAbsolutePath().toFile())
                         .include("**/*/*$GWT_MODULE_XML_POSTFIX")
-                        .each { File file ->
-                    if ( file.exists() && file.isFile() ) {
-                        def path = file.absolutePath.substring(srcDir.absolutePath.size()+1)
-                        def widgetset = TemplateUtil.convertFilePathToFQN(path, GWT_MODULE_XML_POSTFIX)
+                        .each { File srcFile ->
+                    Path file = srcFile.toPath()
+                    if ( Files.exists(file) && Files.isRegularFile(file) ) {
+                        String path = file.relativize(srcDir).toString()
+                        String widgetset = TemplateUtil.convertFilePathToFQN(path, GWT_MODULE_XML_POSTFIX)
                         inherits.add(widgetset)
                     }
                 }
@@ -224,7 +226,7 @@ class UpdateWidgetsetTask extends DefaultTask {
     private static Map<String, Object> getGWTProperties(Project project) {
         Map<String, Object> properties = [:]
 
-        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
 
         def ua = 'gecko1_8,safari'
         if ( !compileWidgetsetTask.userAgent ) {
@@ -250,7 +252,7 @@ class UpdateWidgetsetTask extends DefaultTask {
     }
 
     private static Set<String> getInherits(Project project) {
-        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
 
         Set<String> inherits
         if(Util.isLegacyVaadin8Project(project)) {
@@ -277,7 +279,7 @@ class UpdateWidgetsetTask extends DefaultTask {
     }
 
     private static String getWidgetsetGenerator(Project project, String widgetsetFQN) {
-        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
 
         String name, pkg, filename
         if ( compileWidgetsetTask.widgetsetGenerator == null ) {
@@ -295,9 +297,9 @@ class UpdateWidgetsetTask extends DefaultTask {
             throw new GradleException('No source sets was found.')
         }
 
-        File javaDir = Util.getMainSourceSet(project).srcDirs.first()
-        File f = new File(new File(javaDir, TemplateUtil.convertFQNToFilePath(pkg)), filename)
-        if ( f.exists() || compileWidgetsetTask.widgetsetGenerator != null ) {
+        Path javaDir = Util.getMainSourceSet(project).srcDirs.first().toPath()
+        Path f = javaDir.resolve(TemplateUtil.convertFQNToFilePath(pkg)).resolve(filename)
+        if ( Files.exists(f) || compileWidgetsetTask.widgetsetGenerator != null ) {
             return  "${pkg}.${StringUtils.removeEnd(filename, JAVA_FILE_POSTFIX)}"
         }
         null

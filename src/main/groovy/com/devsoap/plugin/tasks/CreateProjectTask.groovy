@@ -21,6 +21,8 @@ import com.devsoap.plugin.creators.ProjectCreator
 import com.devsoap.plugin.creators.ThemeCreator
 import com.devsoap.plugin.extensions.VaadinPluginExtension
 import org.gradle.api.DefaultTask
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.options.Option
 import org.gradle.api.tasks.TaskAction
 
@@ -39,24 +41,31 @@ class CreateProjectTask extends DefaultTask {
     /**
      * The application class name
      */
+    @Input
+    @Optional
     @Option(option = 'name', description = 'Application name')
     String applicationName
 
     /**
      * The application package
      */
+    @Input
+    @Optional
     @Option(option = 'package', description = 'Application UI package')
     String applicationPackage
 
     /**
      * The fully qualified name of the widgetset
      */
+    @Input
+    @Optional
     @Option(option = 'widgetset', description = 'Widgetset name')
     String widgetsetFQN
 
     CreateProjectTask() {
         description = "Creates a new Vaadin Project."
         finalizedBy UpdateAddonStylesTask.NAME, CompileThemeTask.NAME
+        outputs.upToDateWhen { false }
     }
 
     /**
@@ -64,9 +73,9 @@ class CreateProjectTask extends DefaultTask {
      */
     @TaskAction
     void run() {
-        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
 
-        String widgetset
+        String widgetset = null
         if(widgetsetFQN) {
             widgetset = widgetsetFQN
         } else if(compileWidgetsetTask.widgetset) {
@@ -81,8 +90,8 @@ class CreateProjectTask extends DefaultTask {
                 widgetsetCDN: compileWidgetsetTask.widgetsetCDN,
                 widgetsetFQN:widgetset,
                 pushSupported:Util.isPushEnabled(project),
-                javaDir:Util.getMainSourceSet(project).srcDirs.first(),
-                resourceDir:project.sourceSets.main.resources.srcDirs.iterator().next(),
+                javaDir:Util.getMainSourceSet(project).srcDirs.first().toPath(),
+                resourceDir:project.sourceSets.main.resources.srcDirs.first().toPath(),
                 templateDir: 'simpleProject',
                 projectType: Util.getProjectType(project),
                 bootEnabled: SpringBootAction.isSpringBootPresent(project)
@@ -109,7 +118,7 @@ class CreateProjectTask extends DefaultTask {
     }
 
     private String resolveApplicationPackage() {
-        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
 
         if ( !applicationPackage ) {
             int endSlashSize = 2

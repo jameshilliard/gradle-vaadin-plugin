@@ -18,8 +18,6 @@ package com.devsoap.plugin.extensions
 import org.gradle.api.Project
 import org.gradle.api.provider.Property
 
-import javax.validation.constraints.NotNull
-
 /**
  * SpringBoot-related options
  *
@@ -49,7 +47,7 @@ class SpringBootExtension {
      * The Vaadin Spring Boot Starter version to use. By
      * default latest 3.x version.
      */
-    String setStarterVersion(@NotNull String springBootStarterVersion) {
+    String setStarterVersion(String springBootStarterVersion) {
         this.starterVersion.set(springBootStarterVersion)
     }
 }

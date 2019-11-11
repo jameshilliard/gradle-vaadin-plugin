@@ -22,6 +22,9 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.tasks.TaskAction
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * Creates the widgetset generated class
  *
@@ -50,10 +53,10 @@ class CreateWidgetsetGeneratorTask extends DefaultTask {
         makeWidgetsetGeneratorClass()
     }
 
-    private File makeWidgetsetGeneratorClass() {
-        File javaDir = Util.getMainSourceSet(project).srcDirs.first()
+    private Path makeWidgetsetGeneratorClass() {
+        Path javaDir = Util.getMainSourceSet(project).srcDirs.first().toPath()
 
-        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
 
         String widgetset = compileWidgetsetTask.widgetset
         String widgetsetGenerator = compileWidgetsetTask.widgetsetGenerator
@@ -77,14 +80,14 @@ class CreateWidgetsetGeneratorTask extends DefaultTask {
             }
         }
 
-        File dir = new File(javaDir, TemplateUtil.convertFQNToFilePath(pkg))
-        dir.mkdirs()
+        Path dir = javaDir.resolve(TemplateUtil.convertFQNToFilePath(pkg))
+        Files.createDirectories(dir)
 
         Map substitutions = [:]
         substitutions['packageName'] = pkg
         substitutions['className'] = filename
 
-        File targetFile
+        Path targetFile
         switch (Util.getProjectType(project)) {
             case ProjectType.JAVA:
                 targetFile = TemplateUtil.writeTemplate('MyConnectorBundleLoaderFactory.java', dir,

@@ -22,6 +22,9 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.invocation.Gradle
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * Actions applied when the Vaadin plugin is added to the build
  *
@@ -60,18 +63,18 @@ class VaadinPluginAction extends PluginAction {
                 'Implementation-Title':addonExtension.title,
                 'Implementation-Version':project.version != null ? project.version : '',
                 'Implementation-Vendor':addonExtension.author,
-                'Vaadin-Addon': "libs/${project.jar.archiveName}"
+                'Vaadin-Addon': "libs/${project.jar.archiveFileName}"
         ] as HashMap<String, String>
 
         // Create metadata file
-        File buildDir = project.file('build/tmp/zip')
-        buildDir.mkdirs()
+        Path buildDir = project.file('build/tmp/zip').toPath()
+        Files.createDirectories(buildDir)
 
-        File meta = project.file(buildDir.absolutePath + '/META-INF')
-        meta.mkdirs()
+        Path meta = project.file(buildDir.resolve('META-INF').toAbsolutePath().toString()).toPath()
+        Files.createDirectories(meta)
 
-        File manifestFile = project.file(meta.absolutePath + '/MANIFEST.MF')
-        manifestFile.createNewFile()
+        Path manifestFile = project.file(meta.resolve('MANIFEST.MF').toAbsolutePath().toString()).toPath()
+        Files.createFile(manifestFile)
         manifestFile << attributes.collect { key, value -> "$key: $value" }.join("\n")
     }
 

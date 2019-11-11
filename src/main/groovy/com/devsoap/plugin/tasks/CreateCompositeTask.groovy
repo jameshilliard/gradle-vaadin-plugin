@@ -19,8 +19,12 @@ import com.devsoap.plugin.ProjectType
 import com.devsoap.plugin.TemplateUtil
 import com.devsoap.plugin.Util
 import org.gradle.api.DefaultTask
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.options.Option
 import org.gradle.api.tasks.TaskAction
+
+import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * Creates a new Vaadin Composite
@@ -37,12 +41,14 @@ class CreateCompositeTask extends DefaultTask {
     /**
      * The composite class name
      */
+    @Input
     @Option(option = 'name', description = 'Component name')
     String componentName = 'MyComposite'
 
     /**
      * The composite package name
      */
+    @Input
     @Option(option = 'package', description = 'Package name')
     String componentPackage = "com.example.${componentName.toLowerCase()}"
 
@@ -55,7 +61,7 @@ class CreateCompositeTask extends DefaultTask {
      */
     @TaskAction
     void run() {
-        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME)
+        CompileWidgetsetTask compileWidgetsetTask = project.tasks.getByName(CompileWidgetsetTask.NAME) as CompileWidgetsetTask
         if ( !componentPackage && compileWidgetsetTask.widgetset ) {
             String widgetsetClass = compileWidgetsetTask.widgetset
             String widgetsetPackage = widgetsetClass.substring(0, widgetsetClass.lastIndexOf(DOT))
@@ -66,10 +72,10 @@ class CreateCompositeTask extends DefaultTask {
     }
 
     private makeCompositeClass() {
-        def javaDir = Util.getMainSourceSet(project).srcDirs.first()
+        Path javaDir = Util.getMainSourceSet(project).srcDirs.first().toPath()
 
-        def componentDir = new File(javaDir, TemplateUtil.convertFQNToFilePath(componentPackage))
-        componentDir.mkdirs()
+        Path componentDir = javaDir.resolve(TemplateUtil.convertFQNToFilePath(componentPackage))
+        Files.createDirectories(componentDir)
 
         def substitutions = [:]
         substitutions['componentPackage'] = componentPackage

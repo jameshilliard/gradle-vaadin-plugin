@@ -21,7 +21,8 @@ import org.glassfish.embeddable.GlassFish;
 import org.glassfish.embeddable.GlassFishProperties;
 import org.glassfish.embeddable.GlassFishRuntime;
 
-import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -53,7 +54,7 @@ public class PayaraServerRunner {
             BootstrapProperties bootstrap = new BootstrapProperties();
 
             GlassFishRuntime runtime = GlassFishRuntime.bootstrap(bootstrap,
-                    PayaraServerRunner.class.getClass().getClassLoader());
+                    PayaraServerRunner.class.getClassLoader());
 
             GlassFishProperties glassfishProperties = new GlassFishProperties();
             glassfishProperties.setPort("http-listener", port);
@@ -64,10 +65,10 @@ public class PayaraServerRunner {
 
             Deployer deployer = glassfish.getDeployer();
 
-            File work = new File(workdir);
-            File explodedWar = new File(work, "war");
+            Path work = Paths.get(workdir);
+            Path explodedWar = work.resolve("war");
 
-            deployer.deploy(explodedWar, "--contextroot=");
+            deployer.deploy(explodedWar.toFile(), "--contextroot=");
 
         } catch (Exception ex){
             LOGGER.log(Level.SEVERE, "Failed to start Payara server", ex);

@@ -1,28 +1,28 @@
 package com.devsoap.plugin.tests
 
-import com.devsoap.plugin.categories.WidgetsetAndThemeCompile
 import com.devsoap.plugin.tasks.BuildClassPathJar
 import com.devsoap.plugin.tasks.CreateComponentTask
 import com.devsoap.plugin.tasks.CreateProjectTask
 import com.devsoap.plugin.tasks.CreateThemeTask
-import org.junit.Test
-import org.junit.experimental.categories.Category
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
 
-import java.nio.file.Paths
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.jar.Manifest
 
-import static org.junit.Assert.assertNotNull
-import static org.junit.Assert.assertTrue
+import static org.junit.jupiter.api.Assertions.assertNotNull
+import static org.junit.jupiter.api.Assertions.assertTrue
 
 /**
  * Created by john on 1/11/17.
  */
-@Category(WidgetsetAndThemeCompile)
+@Tag("WidgetsetAndThemeCompile")
 class MultimoduleWidgetsetThemeTest extends MultiProjectIntegrationTest {
 
     @Test void 'Multimodule project with shared widgetset and theme'() {
-        File widgetsetModule = makeProject('widgetset-module')
-        File widgetsetBuildFile = makeBuildFile(widgetsetModule)
+        Path widgetsetModule = makeProject('widgetset-module')
+        Path widgetsetBuildFile = makeBuildFile(widgetsetModule)
         widgetsetBuildFile << """
             vaadinCompile {
                 widgetset 'com.example.MyWidgetset'
@@ -38,10 +38,10 @@ class MultimoduleWidgetsetThemeTest extends MultiProjectIntegrationTest {
             jar.from 'src/main/webapp'
         """.stripIndent()
 
-        runWithArguments(":$widgetsetModule.name:$CreateComponentTask.NAME", '--name=MyLabel')
+        runWithArguments(":${widgetsetModule.fileName.toString()}:$CreateComponentTask.NAME", '--name=MyLabel')
 
-        File themeModule = makeProject('theme-module')
-        File themeModuleBuildFile = makeBuildFile(themeModule)
+        Path themeModule = makeProject('theme-module')
+        Path themeModuleBuildFile = makeBuildFile(themeModule)
         themeModuleBuildFile << """
             vaadinAddon {
                 title 'app-theme'
@@ -53,10 +53,10 @@ class MultimoduleWidgetsetThemeTest extends MultiProjectIntegrationTest {
             jar.from 'src/main/webapp'
         """.stripIndent()
 
-        runWithArguments(":$themeModule.name:$CreateThemeTask.NAME", '--name=AppTheme')
+        runWithArguments(":${themeModule.getFileName().toString()}:$CreateThemeTask.NAME", '--name=AppTheme')
 
-        File appModule = makeProject('app')
-        File appBuildFile = makeBuildFile(appModule)
+        Path appModule = makeProject('app')
+        Path appBuildFile = makeBuildFile(appModule)
         appBuildFile << """
             // Disable widgetset compilation as widgetset
             // is served from widgetset-module
@@ -69,34 +69,34 @@ class MultimoduleWidgetsetThemeTest extends MultiProjectIntegrationTest {
             project.tasks.vaadinUpdateAddonStyles.enabled = false
 
             dependencies {
-                compile project(':theme-module')
-                compile project(':widgetset-module')
+                implementation project(':theme-module')
+                implementation project(':widgetset-module')
             }
         """.stripIndent()
 
         runWithArguments(":app:$CreateProjectTask.NAME")
 
         // Remove generated theme from app
-        Paths.get(appModule.canonicalPath, 'src', 'main', 'webapp').deleteDir()
+        appModule.resolve('src').resolve('main').resolve('webapp').deleteDir()
 
         // Generate war
         String result = runWithArguments(':app:war')
-        assertTrue result, result.contains('BUILD SUCCESSFUL')
+        assertTrue result.contains('BUILD SUCCESSFUL'), result
     }
 
     @Test void 'Multimodule project with classpath jar'() {
 
-        buildFile = makeBuildFile(projectDir.root)
+        buildFile = makeBuildFile(projectDir)
         buildFile << """
             vaadin.useClassPathJar = true
 
             dependencies {
-                compile project(':theme-module')
+                implementation project(':theme-module')
             }
         """.stripIndent()
 
-        File themeModule = makeProject('theme-module')
-        File themeModuleBuildFile = makeBuildFile(themeModule)
+        Path themeModule = makeProject('theme-module')
+        Path themeModuleBuildFile = makeBuildFile(themeModule)
         themeModuleBuildFile << """
             vaadinAddon {
                 title 'app-theme'
@@ -108,19 +108,19 @@ class MultimoduleWidgetsetThemeTest extends MultiProjectIntegrationTest {
             jar.from 'src/main/webapp'
         """.stripIndent()
 
-        runWithArguments("$themeModule.name:$CreateThemeTask.NAME", '--name=AppTheme')
+        runWithArguments("${themeModule.getFileName().toString()}:$CreateThemeTask.NAME", '--name=AppTheme')
         runWithArguments(CreateProjectTask.NAME)
         runWithArguments(BuildClassPathJar.NAME)
 
-        File manifest = Paths.get(projectDir.root.canonicalPath,
-                'build', 'tmp', 'vaadinClassPathJar', 'MANIFEST.MF').toFile()
-        assertTrue 'Manifest did not exist', manifest.exists()
+        Path manifest = projectDir.resolve('build').resolve('tmp')
+                .resolve('vaadinClassPathJar').resolve('MANIFEST.MF')
+        assertTrue Files.exists(manifest), 'Manifest did not exist'
 
-        manifest.withDataInputStream { stream ->
+        Files.newInputStream(manifest).withCloseable { InputStream stream ->
             Manifest m = new Manifest(stream)
             String cp = m.mainAttributes.getValue("Class-Path")
             assertNotNull 'Attribute Class-Path not found in attributes '+m.mainAttributes, cp
-            assertTrue cp.contains('theme-module-1.jar')
+            assertTrue cp.contains('theme-module-1.jar'), 'Jar theme-module-1.jar not found in Class-Path '+cp
         }
 
     }

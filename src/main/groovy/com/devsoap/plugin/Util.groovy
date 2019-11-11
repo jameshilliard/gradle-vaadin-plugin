@@ -22,7 +22,6 @@ import com.devsoap.plugin.tasks.UpdateWidgetsetTask
 import groovy.io.FileType
 import groovy.transform.Memoized
 import groovyx.net.http.HTTPBuilder
-import org.apache.commons.lang.StringUtils
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler
 import org.gradle.api.GradleException
 import org.gradle.api.Project
@@ -32,6 +31,7 @@ import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileVisitDetails
 import org.gradle.api.file.SourceDirectorySet
+import org.gradle.api.internal.file.DefaultSourceDirectorySet
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.plugins.JavaPluginConvention
 import org.gradle.api.plugins.WarPluginConvention
@@ -39,6 +39,7 @@ import org.gradle.api.tasks.SourceSet
 import org.gradle.util.VersionNumber
 
 import java.awt.*
+import java.lang.reflect.Method
 import java.nio.file.FileSystems
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
@@ -116,11 +117,11 @@ class Util {
         FileCollection classpath
         if ( pluginExtension.useClassPathJar ) {
             // Add dependencies using the classpath jar
-            BuildClassPathJar pathJarTask = project.tasks.getByName(BuildClassPathJar.NAME)
-            if(!pathJarTask.archivePath.exists()) {
+            BuildClassPathJar pathJarTask = project.tasks.getByName(BuildClassPathJar.NAME) as BuildClassPathJar
+            if(!pathJarTask.archiveFile.present) {
                 throw new IllegalStateException("Classpath jar has not been created in project $pathJarTask.project")
             }
-            classpath = project.files(pathJarTask.archivePath)
+            classpath = project.files(pathJarTask.archiveFile)
         } else {
             classpath = getCompileClassPath(project)
         }
@@ -164,13 +165,14 @@ class Util {
                 }
 
                 // Addons with client side widgetset
-                JarFile jar = new JarFile(file.absolutePath)
-                if ( !jar.manifest ) {
-                    return false
-                }
+                new JarFile(file.absolutePath).withCloseable { JarFile jar ->
+                    if ( !jar.manifest ) {
+                        return false
+                    }
 
-                Attributes attributes = jar.manifest.mainAttributes
-                return attributes.getValue('Vaadin-Widgetsets')
+                    Attributes attributes = jar.manifest.mainAttributes
+                    return attributes.getValue('Vaadin-Widgetsets')
+                }
             }
             true
         }
@@ -275,7 +277,7 @@ class Util {
      */
     @Memoized
     static isPushEnabled(Project project) {
-        VaadinPluginExtension vaadin = project.extensions[VaadinPluginExtension.NAME]
+        VaadinPluginExtension vaadin = project.extensions[VaadinPluginExtension.NAME] as VaadinPluginExtension
         vaadin.push
     }
 
@@ -346,17 +348,17 @@ class Util {
      */
     @Memoized
     static List findAddonSassStylesInProject(Project project) {
-        File resourceDir = project.sourceSets.main.resources.srcDirs.iterator().next()
-        File addonsDir = project.file(resourceDir.canonicalPath + '/VAADIN/addons')
+        Path resourceDir = project.sourceSets.main.resources.srcDirs.first().toPath()
+        Path addonsDir = project.file(resourceDir.resolve('VAADIN/addons').toFile()).toPath()
 
-        List paths = []
+        List<String> paths = []
 
-        if ( addonsDir.exists() ) {
+        if ( Files.exists(addonsDir) ) {
             addonsDir.traverse(type:FileType.DIRECTORIES) { themeDir ->
-                String themeName = themeDir.name
+                String themeName = themeDir.getFileName().toString()
                 Pattern fileNameRegExp = ~/$themeName\.s?css/
                 themeDir.traverse(type:FileType.FILES, nameFilter:fileNameRegExp) { cssFile ->
-                    paths += ["VAADIN/addons/$themeName/$cssFile.name"]
+                    paths += ["VAADIN/addons/$themeName/${cssFile.getFileName().toString()}"]
                 }
             }
         }
@@ -391,7 +393,8 @@ class Util {
         if ( project.vaadin.logToConsole ) {
             logProcessToConsole(project, process, monitor)
         } else {
-            logProcessToFile(project, process, filename, monitor)
+            logProcessToConsole(project, process, monitor)
+            //logProcessToFile(project, process, filename, monitor)
         }
     }
 
@@ -409,10 +412,10 @@ class Util {
      */
     static void logProcessToFile(final Project project, final Process process, final String filename,
                                  Closure monitor={ }) {
-        File logDir = project.file("$project.buildDir/logs/")
-        logDir.mkdirs()
+        Path logDir = project.file(project.buildDir.toPath().resolve('logs').toFile()).toPath()
+        Files.createDirectories(logDir)
 
-        final File LOGFILE = new File(logDir, filename)
+        final Path LOGFILE = logDir.resolve(filename)
         project.logger.info("Logging to file $LOGFILE")
 
         GradleVaadinPlugin.THREAD_POOL.submit {
@@ -420,20 +423,22 @@ class Util {
                 try {
                     boolean errorOccurred = false
 
-                    process.inputStream.eachLine { output ->
-                        monitor.call(output)
-                        if ( output.contains(WARNING_LOG_MARKER) ) {
-                            out.println WARNING_LOG_MARKER + SPACE + output.replace(WARNING_LOG_MARKER, '').trim()
-                        } else if ( output.contains(ERROR_LOG_MARKER) ) {
-                            errorOccurred = true
-                            out.println ERROR_LOG_MARKER + SPACE + output.replace(ERROR_LOG_MARKER,'').trim()
-                        } else {
-                            out.println INFO_LOG_MARKER + SPACE + output.trim()
-                        }
-                        out.flush()
-                        if ( errorOccurred ) {
-                            // An error has occurred, dump everything to console
-                            project.logger.error(output.replace(ERROR_LOG_MARKER,'').trim())
+                    process.inputStream.withCloseable { InputStream stream ->
+                        stream.eachLine { output ->
+                            monitor.call(output)
+                            if ( output.contains(WARNING_LOG_MARKER) ) {
+                                out.println WARNING_LOG_MARKER + SPACE + output.replace(WARNING_LOG_MARKER, '').trim()
+                            } else if ( output.contains(ERROR_LOG_MARKER) ) {
+                                errorOccurred = true
+                                out.println ERROR_LOG_MARKER + SPACE + output.replace(ERROR_LOG_MARKER,'').trim()
+                            } else {
+                                out.println INFO_LOG_MARKER + SPACE + output.trim()
+                            }
+                            out.flush()
+                            if ( errorOccurred ) {
+                                // An error has occurred, dump everything to console
+                                project.logger.error(output.replace(ERROR_LOG_MARKER,'').trim())
+                            }
                         }
                     }
                 } catch (IOException e) {
@@ -445,15 +450,17 @@ class Util {
 
         GradleVaadinPlugin.THREAD_POOL.submit {
             LOGFILE.withWriterAppend { out ->
-                try {
-                    process.errorStream.eachLine { output ->
-                        monitor.call(output)
-                        out.println ERROR_LOG_MARKER + SPACE + output.replace(ERROR_LOG_MARKER,'').trim()
-                        out.flush()
+                process.errorStream.withCloseable {InputStream stream ->
+                    try {
+                        stream.eachLine { output ->
+                            monitor.call(output)
+                            out.println ERROR_LOG_MARKER + SPACE + output.replace(ERROR_LOG_MARKER,'').trim()
+                            out.flush()
+                        }
+                    } catch (IOException e) {
+                        // Stream might be closed
+                        project.logger.debug(STREAM_CLOSED_LOG_MESSAGE, e)
                     }
-                } catch (IOException e) {
-                    // Stream might be closed
-                    project.logger.debug(STREAM_CLOSED_LOG_MESSAGE, e)
                 }
             }
         }
@@ -473,25 +480,27 @@ class Util {
         project.logger.info("Logging to console")
 
         GradleVaadinPlugin.THREAD_POOL.submit {
-            try {
-                boolean errorOccurred = false
-                process.inputStream.eachLine { output ->
-                    monitor.call(output)
-                    if ( output.contains(WARNING_LOG_MARKER) ) {
-                        project.logger.warn(output.replace(WARNING_LOG_MARKER, '').trim())
-                    } else if ( output.contains(ERROR_LOG_MARKER) ) {
-                        errorOccurred = true
-                    } else {
-                        project.logger.info(output.trim())
+            process.inputStream.withCloseable { InputStream stream ->
+                try {
+                    boolean errorOccurred = false
+                    stream.eachLine { output ->
+                        monitor.call(output)
+                        if ( output.contains(WARNING_LOG_MARKER) ) {
+                            project.logger.warn(output.replace(WARNING_LOG_MARKER, '').trim())
+                        } else if ( output.contains(ERROR_LOG_MARKER) ) {
+                            errorOccurred = true
+                        } else {
+                            project.logger.info(output.trim())
+                        }
+                        if ( errorOccurred ) {
+                            // An error has occurred, dump everything to console
+                            project.logger.error(output.replace(ERROR_LOG_MARKER, '').trim())
+                        }
                     }
-                    if ( errorOccurred ) {
-                        // An error has occurred, dump everything to console
-                        project.logger.error(output.replace(ERROR_LOG_MARKER, '').trim())
-                    }
+                } catch (IOException e) {
+                    // Stream might be closed
+                    project.logger.debug(STREAM_CLOSED_LOG_MESSAGE, e)
                 }
-            } catch (IOException e) {
-                // Stream might be closed
-                project.logger.debug(STREAM_CLOSED_LOG_MESSAGE, e)
             }
         }
 
@@ -525,8 +534,8 @@ class Util {
         Files.walkFileTree path, new SimpleFileVisitor<Path>() {
 
             @Override
-            public FileVisitResult preVisitDirectory(Path p, BasicFileAttributes attrs) {
-                if ( p.toFile().exists() ) {
+            FileVisitResult preVisitDirectory(Path p, BasicFileAttributes attrs) {
+                if ( Files.exists(p) ) {
                     p.register(watchService,
                             StandardWatchEventKinds.ENTRY_CREATE,
                             StandardWatchEventKinds.ENTRY_DELETE,
@@ -567,19 +576,19 @@ class Util {
      *      The themes directory
      */
     @Memoized
-    static File getThemesDirectory(Project project) {
-        File themesDir
-        CompileThemeTask compileThemeTask = project.tasks.getByName(CompileThemeTask.NAME)
+    static Path getThemesDirectory(Project project) {
+        Path themesDir
+        CompileThemeTask compileThemeTask = project.tasks.getByName(CompileThemeTask.NAME) as CompileThemeTask
         if ( compileThemeTask.themesDirectory ) {
             String customDir = compileThemeTask.themesDirectory
-            themesDir = new File(customDir)
+            themesDir = Paths.get(customDir)
             if ( !themesDir.absolute ) {
-                themesDir = project.file(project.rootDir.canonicalPath + File.separator + customDir)
+                themesDir = project.file(project.rootDir.toPath().resolve(customDir).toFile()).toPath()
             }
         } else {
-            File webAppDir = getWebAppDirectory(project)
-            File vaadinDir = new File(webAppDir, VAADIN)
-            themesDir = new File(vaadinDir, 'themes')
+            Path webAppDir = getWebAppDirectory(project)
+            Path vaadinDir = webAppDir.resolve(VAADIN)
+            themesDir = vaadinDir.resolve('themes')
         }
         themesDir
     }
@@ -593,10 +602,10 @@ class Util {
      *      The widgetset directory
      */
     @Memoized
-    static File getWidgetsetDirectory(Project project) {
-        File webAppDir = getWebAppDirectory(project)
-        File vaadinDir = new File(webAppDir, VAADIN)
-        File widgetsetsDir = new File(vaadinDir, 'widgetsets')
+    static Path getWidgetsetDirectory(Project project) {
+        Path webAppDir = getWebAppDirectory(project)
+        Path vaadinDir = webAppDir.resolve(VAADIN)
+        Path widgetsetsDir = vaadinDir.resolve('widgetsets')
         widgetsetsDir
     }
 
@@ -609,10 +618,10 @@ class Util {
      *      The widgetset directory
      */
     @Memoized
-    static File getWidgetsetCacheDirectory(Project project) {
-        File webAppDir = getWebAppDirectory(project)
-        File vaadinDir = new File(webAppDir, VAADIN)
-        File unitCacheDir = new File(vaadinDir, 'gwt-unitCache')
+    static Path getWidgetsetCacheDirectory(Project project) {
+        Path webAppDir = getWebAppDirectory(project)
+        Path vaadinDir = webAppDir.resolve(VAADIN)
+        Path unitCacheDir = vaadinDir.resolve('gwt-unitCache')
         unitCacheDir
     }
 
@@ -625,14 +634,14 @@ class Util {
      *      the directory
      */
     @Memoized
-    static File getWebAppDirectory(Project project) {
+    static Path getWebAppDirectory(Project project) {
         String outputDir = project.vaadinCompile.outputDirectory
         if(outputDir){
-            project.file(outputDir)
+            project.file(outputDir).toPath()
         } else if(project.convention.findPlugin(WarPluginConvention)){
-            project.convention.getPlugin(WarPluginConvention).webAppDir
+            project.convention.getPlugin(WarPluginConvention).webAppDir.toPath()
         } else {
-            project.file('src/main/webapp')
+            project.file('src/main/webapp').toPath()
         }
     }
 
@@ -725,7 +734,7 @@ class Util {
         scannedProjects << project
         Attributes.Name attribute = new Attributes.Name(byAttribute)
 
-        project.configurations.all.each { Configuration conf ->
+        project.configurations.each { Configuration conf ->
             if(conf.name != GradleVaadinPlugin.CONFIGURATION_CLIENT){
                 conf.allDependencies.each { Dependency dependency ->
                     if (dependency in ProjectDependency) {
@@ -734,7 +743,7 @@ class Util {
                             addons.addAll(findAddonsInProject(dependentProject, byAttribute, includeFile,
                                     scannedProjects))
                         }
-                    } else if (isResolvable(project, conf)){
+                    } else if (isResolvable(project, conf) && !isDeprecated(conf)){
                         conf.files(dependency).each { File file ->
                             if (file.file && file.name.endsWith(JAR_EXTENSION)) {
                                 file.withInputStream { InputStream stream ->
@@ -781,7 +790,7 @@ class Util {
      */
     @Memoized
     static String getClientPackage(Project project) {
-        String clientPackage
+        String clientPackage = null
         getMainSourceSet(project).srcDirs.each { File srcDir ->
              project.fileTree(srcDir).visit { FileVisitDetails details ->
                 if ( details.name == CLIENT_PACKAGE_NAME && details.directory ) {
@@ -827,7 +836,7 @@ class Util {
         classpath += project.configurations[GradleVaadinPlugin.CONFIGURATION_CLIENT_COMPILE]
 
         // Include runtime dependencies
-        classpath += project.configurations.runtime
+        classpath += project.configurations.runtimeClasspath
 
         // Include push dependencies if enabled
         if ( isPushEnabled(project) ) {
@@ -930,15 +939,15 @@ class Util {
         }
 
         // Search for widgetset
-        File widgetsetFile = resolveWidgetsetFile(project)
+        Path widgetsetFile = resolveWidgetsetFile(project)
         if ( widgetsetFile ) {
-            def sourceDirs = project.sourceSets.main.allSource
-            File rootDir = sourceDirs.srcDirs.find { File directory ->
-                project.fileTree(directory.absolutePath).contains(widgetsetFile)
-            }
+            DefaultSourceDirectorySet sourceDirs = project.sourceSets.main.allSource
+            Path rootDir = sourceDirs.srcDirs.find { File directory ->
+                project.fileTree(directory.absolutePath).contains(widgetsetFile.toFile())
+            }.toPath()
             if ( rootDir ) {
-                File relativePath= new File( rootDir.toURI().relativize( widgetsetFile.toURI() ).toString() )
-                String widgetset = TemplateUtil.convertFilePathToFQN(relativePath.path, GWT_MODULE_POSTFIX)
+                Path relativePath= rootDir.relativize(widgetsetFile)
+                String widgetset = TemplateUtil.convertFilePathToFQN(relativePath.toString(), GWT_MODULE_POSTFIX)
                 project.logger.info "Detected widgetset $widgetset from project"
                 widgetset
             }
@@ -949,16 +958,16 @@ class Util {
      * Resolves the widgetset file automatically from sources
      */
     @Memoized
-    static File resolveWidgetsetFile(Project project) {
+    static Path resolveWidgetsetFile(Project project) {
 
         // Search for module XML in sources
-        def sourceDirs = project.sourceSets.main.allSource
+        DefaultSourceDirectorySet sourceDirs = project.sourceSets.main.allSource
         List modules = []
         sourceDirs.srcDirs.each {
             modules.addAll(project.fileTree(it.absolutePath).include('**/*/*.gwt.xml'))
         }
         if ( !modules.isEmpty() ) {
-            return modules.first()
+            return modules.first().toPath()
         }
 
         // WidgetsetFile has been defined but not created, create it
@@ -968,7 +977,7 @@ class Util {
         if ( !widgetset ) {
             String clientPackage = getClientPackage(project)
             if ( clientPackage ) {
-                String widgetsetPath = StringUtils.removeEnd(clientPackage, File.separator + CLIENT_PACKAGE_NAME)
+                String widgetsetPath = Paths.get(clientPackage).resolve(CLIENT_PACKAGE_NAME).toString()
                 if ( widgetsetPath.size() > 0 ) {
                     widgetsetPath = TemplateUtil.convertFilePathToFQN(widgetsetPath, '') + '.'
                 }
@@ -988,11 +997,12 @@ class Util {
 
         if ( widgetset && !project.vaadinCompile.widgetsetCDN ) {
             // No widgetset file detected, create one
-            File resourceDir = project.sourceSets.main.resources.srcDirs.first()
-            File widgetsetFile = new File(resourceDir,
+            Path resourceDir = project.sourceSets.main.resources.srcDirs.first().toPath()
+            Path widgetsetFile = resourceDir.resolve(
                     TemplateUtil.convertFQNToFilePath(widgetset, GWT_MODULE_POSTFIX))
-            widgetsetFile.parentFile.mkdirs()
-            widgetsetFile.createNewFile()
+            Files.createDirectories(widgetsetFile.parent)
+            Files.deleteIfExists(widgetsetFile)
+            Files.createFile(widgetsetFile)
             return widgetsetFile
         }
 
@@ -1009,13 +1019,13 @@ class Util {
         }
         List<Character> collector = []
         List<String> collector2 = []
-        string.chars.collect(collector) { ch ->
+        string.chars.collect(collector, ({ ch ->
             if (collector.empty) {
                 Character.isJavaIdentifierStart(ch) ? ch : ''
             } else {
                 Character.isJavaIdentifierPart(ch) ? ch : ' '
             }
-        }.join('').tokenize().collect(collector2) { t ->
+        } as Closure<? extends Character>)).join('').tokenize().collect(collector2) { t ->
             collector2.empty ? t : t.capitalize()
         }.join('')
     }
@@ -1036,6 +1046,29 @@ class Util {
         VersionNumber gradleVersion = VersionNumber.parse(project.gradle.gradleVersion)
         VersionNumber gradleVersionWithUnresolvableDeps = new VersionNumber(3, 3, 0, null)
         gradleVersion >= gradleVersionWithUnresolvableDeps
+    }
+
+    /**
+     * Is the configuration deprecated
+     *
+     * @param configuration
+     *      the configuration to check
+     * @return
+     *      true if configuration is deprecated
+     */
+    @Memoized
+    static boolean isDeprecated(Configuration configuration) {
+        List<String> resolutionAlternatives = null
+        Method getResolutionAlternatives = null
+        try {
+            getResolutionAlternatives = configuration.class.getMethod("getResolutionAlternatives", (Class<?>[]) null)
+        } catch (Exception e) {
+            //
+        }
+        if (getResolutionAlternatives != null) {
+            resolutionAlternatives = getResolutionAlternatives.invoke(configuration, (Object[]) null) as List<String>
+        }
+        resolutionAlternatives != null
     }
 
     /**
@@ -1061,7 +1094,9 @@ class Util {
     @Memoized
     static Properties getPluginProperties() {
         Properties properties = new Properties()
-        properties.load(Util.class.getResourceAsStream('/gradle.properties') as InputStream)
+        Util.class.getResourceAsStream('/gradle.properties').withCloseable { InputStream it ->
+            properties.load(it)
+        }
         properties
     }
 
